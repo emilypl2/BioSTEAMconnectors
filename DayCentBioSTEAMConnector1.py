@@ -28,15 +28,17 @@ def DayCent (dc_path, sch_file, run_id, outvars, dclist_path="", extension =""):
         #dclist_path: name of DayCent list100 file (str)
         #extension, whether or not this is an extension file and the extension .bin (str)
     os.chdir(target_path)
-    if extension: 
+    if extension:
+        # Yalin: with Python 3, you can use the f-string to improve the readability
+        # subprocess.call(f'{dc_path} -s {sch_file} -n {run_id} -e {extension}', shell=True)
         subprocess.call("%s -s %s -n %s -e %s" % (dc_path, sch_file, run_id, extension), shell = True)
-    else: 
+    else:
         subprocess.call("%s -s %s -n %s" % (dc_path, sch_file, run_id), shell = True)
         time.sleep(10)
     if dclist_path:
        subprocess.call("%s %s %s %s" % (dclist_path, run_id, run_id, outvars), shell = True)
 
-def auto_type(datum):
+def auto_type(datum): # Yalin: I'm amazed to see the singular form of data
     #Convert data types to integer or float if possible
     try:
         return int(datum)
@@ -47,6 +49,41 @@ def auto_type(datum):
             return str(datum)
 
 def read_full_out(out_fpath, head_skip, tail_skip):
+    '''
+    Yalin: always great to have documentation for modules!
+    They should be placed rightly after the `def` line.
+
+    I tried for format your notes into the numpydoc style
+    (there are several widely used ones, BioSTEAM uses numpydoc),
+    check here [1]_ for more guidance.
+
+    Reads space-delimited .lis output files (including skipping headers and
+    dummy head or tail data rows), and returns averages of entire columns or averages of
+    annual differences within a column.
+
+    Parameters
+    ----------
+    out_fpath : str
+        Full path and filename of output file to be analyzed.
+    head_skip : int
+        Number of rows to skip at beginning of file, incl. headers and dummy data.
+    tail_skip : int
+        Numbers of rows to skip at end of file, typically dummy data.
+
+    .. note:
+        You obviously don't need my comment and the numpy docstring in the
+        documentation here, I was just trying to give you an example of hyperlink
+        (and note).
+
+    Note
+    ----
+    Another way to add note (can be rendered by both IDE and Sphinx).
+
+    See Also
+    --------
+    .. [1] `numpydoc style <https://numpydoc.readthedocs.io/en/latest/format.html>`_
+    '''
+
     #Reads space-delimited .lis output files (including skipping headers and
     # dummy head or tail data rows), and returns averages of entire columns or averages of
     #  annual differences within a column.
@@ -59,23 +96,35 @@ def read_full_out(out_fpath, head_skip, tail_skip):
     mylist = [[]]
     for i in range(head_skip):
         next(input_data)
+    # Yalin: Are you trying to split each line in `input_data` into a list?
+    # would `input_data.splitlines()` do it?
     for line in input_data:
         mylist.append(line.split())
     del mylist[0]
+    # Yalin: what about `del mylist[-j:]`?
     for j in range(tail_skip):
         del mylist[-1]
 
     # convert each list entry float format if possible, or zero in case of small numbers in scientific notation
+    # Yalin: maybe considering using `numpy.array`?
+    # `array` is the way to go with larger amount of data
+    # What str would be in the input?
+    # numpy can automatically convert scientific expressions to float
+    # import numpy as np
+    # mylist_ar = np.array(mylist, dtype=float)
     for k in range(len(mylist)):
         for l in range(len(mylist[k])):
             mylist[k][l] = auto_type(mylist[k][l])
     return mylist
 
+# Yalin: I feel like we can use array indexing to do it more efficiently
+# (i.e., isntead of using loops),
+# but need to check out the inputs to be sure
 def pull_variable(index, results):
     #seperates the desired vairables from the results
     #index is the the index of the variable you are trying to pull
     #place the volpac strmax(2) and somtc in order at the end of your outfiles
-    #otherwise manually set the index numbers at volpac_index, strmac2_index, and somtc_index 
+    #otherwise manually set the index numbers at volpac_index, strmac2_index, and somtc_index
     #results is your results list, most likely lis_results
     count_down = len(results)-1
     count_up = 0
@@ -86,6 +135,8 @@ def pull_variable(index, results):
         count_down = count_down - 1
     return variable
 
+# Yalin: definitely use array here, then you can just do
+# (0.25*strmac2 + 0.01*NOflux + volpac)/28*44
 def N2Oindirect():
     # g N2O-N/m^2 converted to N2O then CO2e
     #finds indirect N2O emissions
@@ -94,7 +145,7 @@ def N2Oindirect():
     for index in range(len(NOflux)):
         calculation = ((0.025*(strmac2[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/28)*44 #N2O/m^2
         convert = calculation*298 #CO2/m^2
-        N2Oindirect.append(convert) 
+        N2Oindirect.append(convert)
         count_up += count_up
     return N2Oindirect
 
@@ -104,9 +155,9 @@ def CO2flux():
     CO2flux = 0
     count_up = 0
     CO2flux = []
-    for index in range(len(somtc) -1): 
+    for index in range(len(somtc) -1):
         difference = ((somtc[count_up + 1] - somtc[count_up])/12)*44
-        CO2flux.append(difference) 
+        CO2flux.append(difference)
         count_up += 1
     return CO2flux
 
@@ -122,6 +173,10 @@ def convertCH4(var):
     count_up = 0
     return convertvar
 
+# Yalin: I didn't understand the function, what is 2000 doing?
+# I found that you could use `calender` (built-in module) to check leap year
+# import calendar
+# calendar.isleap(1900)
 def daystoyears(var):
     #converts daily methane values to yearly methane values
     count_up = 0
@@ -141,6 +196,10 @@ def daystoyears(var):
          count_up += 1
     return years
 
+# Yalin: I suggest we make .425 an optional argument
+# def cropyield(crmvst, cgrain, C_frac=0.425):
+# ...
+# cropyield = cgrain[:] / C_frac
 def cropyield(crmvst,cgrain):
     #determines if crop is a grain or grass
     #what variable has yield of crop
@@ -152,9 +211,10 @@ def cropyield(crmvst,cgrain):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
         cropyield = cgrain[:] / .425
-    else: 
+    else:
         cropyield = crmvst[:]
-    return cropyield 
+    return cropyield
+
 
 def cornconvert(var):
     #converts yield (g corn/m^2 harvest) to price ($/dryton cornstover)
@@ -162,22 +222,24 @@ def cornconvert(var):
     converted = []
     for index in range(len(var)):
         temp.append(var[index]*((.30+.50)/2)) # g cornstover / m^2 year
-        temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre 
+        temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
+        # Yalin: I think you should do (i.e., 7% is dry storage loss)
+        # temp[index] *= (1-0.15)*(1-0.07)
         temp[index] = temp[index]*(1- .15 - .07) #dryton/arce (15% moisture conetent of stover, 7% storage loss)
         converted.append(temp[index])
         temp[index] = 84.02 / temp[index] # $/dryton (using $84.02/acre)
         temp[index] = (23.54 + 22.4 + 13.23 + 1.27) + temp[index]
     return temp, converted
-   
-def totalCH4(ox, prod): 
-    #subtracts the produced CH4 by the oxidized CH4 to get net CH4 
+
+def totalCH4(ox, prod):
+    #subtracts the produced CH4 by the oxidized CH4 to get net CH4
     CH4new = []
     for index in range(len(ox)):
         CH4new.append(prod[index]-ox[index])
     return CH4new
 
 def MESPPrices(priceperdryton):
-    #finds the MESP ($/kg) 
+    #finds the MESP ($/kg)
     price = []
     ethanolprice = []
     for index in range(len(priceperdryton)):
@@ -197,21 +259,21 @@ def percornstover(chem_list,cropyield):
         tontokg = cropyield[index]*907.185 #dryton/acre to drykg/acre
         perkg.append(m2toacre / tontokg)
     return perkg
-        
-        
+
+
 def calc_emissions(inputs,time):
     #generates emissions (GWP) dataframe
     outputs = pd.DataFrame()
     outputs['years'] = time
-    count = 0 
-    names = ['GWP_Total (kg CO2 eq/kg feedstock)','GWP_N2Ototal (kg CO2 eq/kg feedstock)','N2Oflux (kg CO2 eq/kg feedstock)', 
+    count = 0
+    names = ['GWP_Total (kg CO2 eq/kg feedstock)','GWP_N2Ototal (kg CO2 eq/kg feedstock)','N2Oflux (kg CO2 eq/kg feedstock)',
              'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/kg feedstock)', 'CO2flux (kg CO2 eq/kg feedstock)',
              'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/kg feedstock)']
     GWP = [1,1,0,0,1,0,0,1]
     for i in range(len(inputs)):
         templist = []
         if GWP[i] == 1:
-            for index in range(len(inputs[i])): 
+            for index in range(len(inputs[i])):
                 value = inputs[i][index] * ratio
                 templist.append(value)
         else:
@@ -229,7 +291,7 @@ def add2(source1, source2):
     return total
 
 #defines paths to workspace
-target_path = input("Path to workspace")
+target_path = input("Path to workspace") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
 dc_path = "DayCent_CABBI.exe"
 sch_file = input("Input schedule file name (w/o .sch)")
 run_id = sch_file[:]
@@ -245,7 +307,7 @@ else:
 DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
 
 #from target path, takes methane.csv, year_summary.csv, and harvest.csv
-#to be used in the module 
+#to be used in the module
 os.chdir(target_path)
 harvest = pd.read_csv('harvest.csv')
 year_summary = pd.read_csv('year_summary.csv')
@@ -256,8 +318,8 @@ N2Oflux = year_summary.iloc[:,1]
 NOflux = year_summary.iloc[:,2]
 cgrain = harvest.iloc[:,6]  #g C/m^2 harvest
 crmvst = harvest.iloc[:,10] #g C/m^2 harvest
-CH4_ox = convertCH4(methane.iloc[:,21]) #g C/m^2 d 
-CH4_prod = convertCH4(methane.iloc[:,18]) #g C/m^2 d 
+CH4_ox = convertCH4(methane.iloc[:,21]) #g C/m^2 d
+CH4_prod = convertCH4(methane.iloc[:,18]) #g C/m^2 d
 
 #formatting methane variables
 CH4_oxyear = daystoyears(CH4_ox) # g CO2e /m^2 year
@@ -270,9 +332,9 @@ lis_fpath = 'schedule.lis'
 #reading .lis file, reading the data, separating and formatting variables
 lis_results = read_full_out(lis_fpath, 2, 1)
 shape = len(lis_results[0])
-volpac_index = shape - 3 
+volpac_index = shape - 3
 strmac2_index = shape - 2
-somtc_index = shape - 1 
+somtc_index = shape - 1
 volpac = pull_variable(volpac_index, lis_results)
 strmac2 = pull_variable(strmac2_index, lis_results)
 somtc = pull_variable(somtc_index, lis_results)
@@ -282,7 +344,7 @@ N2Oindirect = N2Oindirect() # g N2O-N/m^2 to g CO2e /m^2 d
 CO2flux = CO2flux() #gC/m^2 to g CO2e/m^2
 
 #finding yield variable and converting to price/dryton and dryton/acre
-cyield = cropyield(crmvst,cgrain) 
+cyield = cropyield(crmvst,cgrain)
 final_stover_price, dryton_acre = cornconvert(cyield) #$/dry ton and dryton/acre
 
 #defining cornstover pieces
@@ -303,7 +365,7 @@ CO2eq_per_kg_cornstover_from_CH4_ox = percornstover(CH4_oxyear, dryton_acre)
 CO2eq_per_kg_cornstover_from_CO2_total = add2(CO2eq_per_kg_cornstover_from_CO2,CO2eq_per_kg_cornstover_from_CH4_ox)
 CO2eq_per_kg_cornstover_from_CH4 = percornstover(CH4, dryton_acre)
 CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total))
-inputs = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect, 
+inputs = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
           CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4)
 
 #generate emissions dataframe
