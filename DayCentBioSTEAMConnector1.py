@@ -16,6 +16,7 @@ matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 import matplotlib.style
 matplotlib.style.use('classic')
+import thermosteam as tmo
 from biorefineries import cornstover as cs
 
 def DayCent (dc_path, sch_file, run_id, outvars, dclist_path="", extension =""):
@@ -274,7 +275,7 @@ def calc_emissions(inputs,time):
         templist = []
         if GWP[i] == 1:
             for index in range(len(inputs[i])):
-                value = inputs[i][index] * ratio
+                value = inputs[i][index] * ratio # Yalin: why multiply the ratio (I thought should divide)?
                 templist.append(value)
         else:
             for index in range(len(inputs[i])):
@@ -370,3 +371,46 @@ inputs = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total,
 
 #generate emissions dataframe
 emissionsdf = calc_emissions(inputs,time = year_summary.iloc[:,0])
+
+
+# %%
+
+# Additional codes added by Yalin for LCA accounting
+from _lca_cornstover import GWP_CF_stream, GWP_CFs
+
+# All streams that contain LCA-relevant chemicals
+lca_streams = [
+    cs.denaturant,
+    cs.cellulase,
+    cs.sulfuric_acid,
+    cs.DAP,
+    cs.CSL,
+    cs.ammonia,
+    cs.FGD_lime,
+    cs.caustic,
+    cs.emissions,
+    ]
+
+# One stream that representing all chemicals
+lca_stream = tmo.Stream('lca_stream')
+lca_stream.mix_from(lca_streams)
+
+# Get the gross results
+def get_GWP():
+    cs_processing_GWP = GWP_CFs['Cornstover']/ratio
+    material_GWP = (GWP_CF_stream.mass*lca_stream.mass).sum()/ethanol.F_mass
+    power_GWP = cs.BT.power_utility.rate*GWP_CFs['Electricity']/ethanol.F_mass
+    return cs_processing_GWP, material_GWP, power_GWP
+
+cs_processing_GWP, material_GWP, power_GWP = get_GWP()
+
+# Using a mass allocation factor of 0.5,
+# (based on the assumption that corn:cornstover = 1:1)
+# total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
+# 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
+
+# As a comparison, the cornstover-derived ethanol has a GWP of
+# 0.19 CO2-eq/kg ethanol
+# in GREET 2020
+# GREET (https://greet.es.anl.gov/) is a model developed by ANL (Argonne National Lab)
+# for energy and emission accounting of fuels
