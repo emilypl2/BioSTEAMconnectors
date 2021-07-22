@@ -41,4 +41,4 @@ GWP_CFs['Electricity'] = 0.48 # kg CO2-eq/kWh
 # Table S6 from Wendt et al., Techno-Economic Assessment of a Chopped Feedstock
 # Logistics Supply Chain for Corn Stover. Front. Energy Res. 2018, 6.
 # https://doi.org/10.3389/fenrg.2018.00090.
-GWP_CFs['Cornstover'] = (68.82-12.24)/1e3
+GWP_CFs['Cornstover'] = 68.82/1e3
