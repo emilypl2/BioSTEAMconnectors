@@ -20,14 +20,23 @@ import thermosteam as tmo
 from biorefineries import cornstover as cs
 
 def DayCent (dc_path, sch_file, run_id, outvars, dclist_path="", extension =""):
-    #runs daycent for a specific schedule file
-    #Arguments
-        #dc_path: name of DayCent version (str)
-        #sch_file: name of schedule file you want to run (str)
-        #run_id: what you want the .bin or .lis file to be called (str)
-        #outvars: name of file with outputs (str)
-        #dclist_path: name of DayCent list100 file (str)
-        #extension, whether or not this is an extension file and the extension .bin (str)
+    '''
+    Runs DayCent for a specific schedule file
+    Parameters
+    ----------
+    dc_path: str
+        Name of DayCent version
+    sch_file: str
+        Name of schedule file to be used
+    run_id: str
+        What you want the .bin or .lis file to be called
+    outvars: str
+        Name of file with outputs
+    dclist_path: str
+        Name of DayCent list100 file
+    extension: str
+        whether or not this is an extension file and the extension .bin
+    '''
     os.chdir(target_path)
     if extension:
         # Yalin: with Python 3, you can use the f-string to improve the readability
@@ -144,10 +153,10 @@ def N2Oindirect():
     count_up = 0
     N2Oindirect = []
     for index in range(len(NOflux)):
-        calculation = ((0.025*(strmac2[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/28)*44 #N2O/m^2
+        calculation = ((0.025*(strmac2[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/14)*44 #N2O/m^2
         convert = calculation*298 #CO2/m^2
         N2Oindirect.append(convert)
-        count_up += count_up
+        count_up += 1
     return N2Oindirect
 
 def CO2flux():
@@ -156,8 +165,8 @@ def CO2flux():
     CO2flux = 0
     count_up = 0
     CO2flux = []
-    for index in range(len(somtc) -1):
-        difference = ((somtc[count_up + 1] - somtc[count_up])/12)*44
+    for index in range(len(somtc)-1):
+        difference = ((somtc[count_up] - somtc[count_up+1])/12)*44
         CO2flux.append(difference)
         count_up += 1
     return CO2flux
@@ -168,7 +177,7 @@ def convertCH4(var):
     CtoCH4 = []
     convertvar = []
     for index in range(len(var)):
-        CtoCH4.append(var[count_up] * (12.011 + 4*(1.008)))
+        CtoCH4.append((var[count_up]/12) * (12.011 + 4*(1.008)))
         convertvar.append(25*CtoCH4[count_up])
         count_up += 1
     count_up = 0
@@ -222,7 +231,7 @@ def cornconvert(var):
     temp = []
     converted = []
     for index in range(len(var)):
-        temp.append(var[index]*((.30+.50)/2)) # g cornstover / m^2 year
+        temp.append(var[index]*(.5)) # g cornstover / m^2 year
         temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
         # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
@@ -257,7 +266,7 @@ def percornstover(chem_list,cropyield):
     for index in range(len(chem_list)):
         gtokg = chem_list[index] / 1000 # g CO2e /m^2 to kg CO2e / m^2
         m2toacre = gtokg * 4046.86 #kg CO2e / m^2 to kg CO2e / acre
-        tontokg = cropyield[index]*907.185 #dryton/acre to drykg/acre
+        tontokg = (cropyield[index]*907.185)/.2 #dryton/acre to kg/acre
         perkg.append(m2toacre / tontokg)
     return perkg
 
@@ -275,7 +284,7 @@ def calc_emissions(inputs,time):
         templist = []
         if GWP[i] == 1:
             for index in range(len(inputs[i])):
-                value = inputs[i][index] * ratio # Yalin: why multiply the ratio (I thought should divide)?
+                value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)?
                 templist.append(value)
         else:
             for index in range(len(inputs[i])):
@@ -292,13 +301,13 @@ def add2(source1, source2):
     return total
 
 #defines paths to workspace
-target_path = input("Path to workspace") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
+target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
 dc_path = "DayCent_CABBI.exe"
-sch_file = input("Input schedule file name (w/o .sch)")
+sch_file = input("Input schedule file name (w/o .sch):")
 run_id = sch_file[:]
 outvars = "outvars.txt"
 dclist_path = "list100_DayCent-CABBI.exe"
-extend = input("Are you extending a file? y or n")
+extend = input("Are you extending a file? y or n:")
 if extend == 'y':
     extension = input('File running DayCent extension with. Do not include .bin')
 else:
@@ -315,8 +324,8 @@ year_summary = pd.read_csv('year_summary.csv')
 methane = pd.read_csv('methane.csv')
 
 #from the dataframes, separating important variables
-N2Oflux = year_summary.iloc[:,1]
-NOflux = year_summary.iloc[:,2]
+N2Oflux = ((year_summary.iloc[:,1])/14)*44*298 #g N/m^2 y
+NOflux = year_summary.iloc[:,2] #g N/m^2 y
 cgrain = harvest.iloc[:,6]  #g C/m^2 harvest
 crmvst = harvest.iloc[:,10] #g C/m^2 harvest
 CH4_ox = convertCH4(methane.iloc[:,21]) #g C/m^2 d
@@ -333,9 +342,9 @@ lis_fpath = 'schedule.lis'
 #reading .lis file, reading the data, separating and formatting variables
 lis_results = read_full_out(lis_fpath, 2, 1)
 shape = len(lis_results[0])
-volpac_index = shape - 3
-strmac2_index = shape - 2
-somtc_index = shape - 1
+volpac_index = shape - 3 #g N/m^2 y
+strmac2_index = shape - 2 #g N/m^2 y
+somtc_index = shape - 1 #g N/m^2 y
 volpac = pull_variable(volpac_index, lis_results)
 strmac2 = pull_variable(strmac2_index, lis_results)
 somtc = pull_variable(somtc_index, lis_results)
@@ -374,7 +383,8 @@ emissionsdf = calc_emissions(inputs,time = year_summary.iloc[:,0])
 
 
 # %%
-
+target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
+os.chdir(target_path)
 # Additional codes added by Yalin for LCA accounting
 from _lca_cornstover import GWP_CF_stream, GWP_CFs
 
@@ -407,8 +417,9 @@ cs_processing_GWP, material_GWP, power_GWP = get_GWP()
 # Using a mass allocation factor of 0.5,
 # (based on the assumption that corn:cornstover = 1:1)
 # total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
-# 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
-
+ #emissions for daycent total GWP
+#GWPethanolfromcornstover = 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
+#smaller than 0
 # As a comparison, the cornstover-derived ethanol has a GWP of
 # 0.19 CO2-eq/kg ethanol
 # in GREET 2020
