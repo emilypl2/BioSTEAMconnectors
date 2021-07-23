@@ -225,22 +225,6 @@ def cropyield(crmvst,cgrain):
         cropyield = crmvst[:]
     return cropyield
 
-
-def cornconvert(var):
-    #converts yield (g corn/m^2 harvest) to price ($/dryton cornstover)
-    temp = []
-    converted = []
-    for index in range(len(var)):
-        temp.append(var[index]*(.5)) # g cornstover / m^2 year
-        temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
-        # Yalin: I think you should do (i.e., 7% is dry storage loss)
-        # temp[index] *= (1-0.15)*(1-0.07)
-        temp[index] = temp[index]*(1- .15 - .07) #dryton/arce (15% moisture conetent of stover, 7% storage loss)
-        converted.append(temp[index])
-        temp[index] = 84.02 / temp[index] # $/dryton (using $84.02/acre)
-        temp[index] = (23.54 + 22.4 + 13.23 + 1.27) + temp[index]
-    return temp, converted
-
 def totalCH4(ox, prod):
     #subtracts the produced CH4 by the oxidized CH4 to get net CH4
     CH4new = []
@@ -248,25 +232,53 @@ def totalCH4(ox, prod):
         CH4new.append(prod[index]-ox[index])
     return CH4new
 
-def MESPPrices(priceperdryton):
-    #finds the MESP ($/kg)
+def MESPPrices(var):
+    '''
+    converts yield (g corn/m^2 harvest) to prices ($/dryton cornstover)
+    then finds the MESP ($/gal)
+
+    Parameters
+    ----------
+    var : series or list 
+        var is the variable containing the yield data (g feedstock/m^2 harvest)
+        
+    Returns
+    -------
+    price: list
+        list of MESP values per year [$/gal]
+    drytonacre: list
+        dryton/acre per year
+    TotalCost: list
+        total cost per year ($/dryton cornstover)
+
+    '''
+    temp = []
+    TotalCost = []
+    drytonacre = []
+    for index in range(len(var)):
+        temp.append(var[index]*(.5)) # g cornstover / m^2 year
+        temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
+        # Yalin: I think you should do (i.e., 7% is dry storage loss)
+        # temp[index] *= (1-0.15)*(1-0.07)
+        temp[index] *= (1 - .07) #dryton/arce (15% moisture conetent of stover, 7% storage loss)
+        drytonacre.append(temp[index])
+        TotalCost.append((14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54)
     price = []
     ethanolprice = []
-    for index in range(len(priceperdryton)):
-        price.append(priceperdryton[index]*.8*(1/907.185)) # 80% dry to 20% wet, 1 ton is 907.185 kg
-        cornstover.price = price[index]
+    for i in range(len(TotalCost)):
+        cornstover.price = TotalCost[i] * (1/907.185) # 1 ton is 907.185 kg
         MESP = cornstover_tea.solve_price(ethanol)
         MESP = MESP*cs.ethanol_density_kggal
-        ethanolprice.append(MESP)
-    return ethanolprice
-
+        price.append(MESP)
+    return price, drytonacre, TotalCost
+    
 def percornstover(chem_list,cropyield):
     #converts a variable to variable / kg cornstover
     perkg = []
     for index in range(len(chem_list)):
         gtokg = chem_list[index] / 1000 # g CO2e /m^2 to kg CO2e / m^2
         m2toacre = gtokg * 4046.86 #kg CO2e / m^2 to kg CO2e / acre
-        tontokg = (cropyield[index]*907.185)/.2 #dryton/acre to kg/acre
+        tontokg = (cropyield[index]*907.185) #dryton/acre to kg/acre
         perkg.append(m2toacre / tontokg)
     return perkg
 
@@ -346,7 +358,9 @@ volpac_index = shape - 3 #g N/m^2 y
 strmac2_index = shape - 2 #g N/m^2 y
 somtc_index = shape - 1 #g N/m^2 y
 volpac = pull_variable(volpac_index, lis_results)
+volpac.pop(0)
 strmac2 = pull_variable(strmac2_index, lis_results)
+strmac2.pop(0)
 somtc = pull_variable(somtc_index, lis_results)
 
 #finding N2O from indirect sources and CO2 flux
@@ -355,7 +369,6 @@ CO2flux = CO2flux() #gC/m^2 to g CO2e/m^2
 
 #finding yield variable and converting to price/dryton and dryton/acre
 cyield = cropyield(crmvst,cgrain)
-final_stover_price, dryton_acre = cornconvert(cyield) #$/dry ton and dryton/acre
 
 #defining cornstover pieces
 cornstover = cs.cornstover
@@ -363,7 +376,7 @@ cornstover_tea = cs.cornstover_tea
 ethanol = cs.ethanol
 
 #generate MESP dataframe
-MESP = MESPPrices(final_stover_price)
+MESP, dryton_acre, dollarperton = MESPPrices(cyield)
 
 #defining ratio and kg CO2eq / kg cornstover variables for each chemical
 ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
@@ -413,12 +426,12 @@ def get_GWP():
     return cs_processing_GWP, material_GWP, power_GWP
 
 cs_processing_GWP, material_GWP, power_GWP = get_GWP()
-
+emissions_from_daycent = np.array(emissionsdf['GWP_Total (kg CO2 eq/kg feedstock)'])
 # Using a mass allocation factor of 0.5,
 # (based on the assumption that corn:cornstover = 1:1)
 # total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
  #emissions for daycent total GWP
-#GWPethanolfromcornstover = 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
+GWPethanolfromcornstover = 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
 #smaller than 0
 # As a comparison, the cornstover-derived ethanol has a GWP of
 # 0.19 CO2-eq/kg ethanol
