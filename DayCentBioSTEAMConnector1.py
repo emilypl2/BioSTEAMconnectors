@@ -12,6 +12,7 @@ import time
 import pandas as pd
 import matplotlib
 import math
+import numpy as np
 matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 import matplotlib.style
