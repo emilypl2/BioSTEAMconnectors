@@ -396,8 +396,8 @@ emissionsdf = calc_emissions(inputs,time = year_summary.iloc[:,0])
 
 
 # %%
-target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
-os.chdir(target_path)
+# target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
+# os.chdir(target_path)
 # Additional codes added by Yalin for LCA accounting
 from _lca_cornstover import GWP_CF_stream, GWP_CFs
 

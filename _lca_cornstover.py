@@ -35,7 +35,9 @@ GWP_CF_stream = tmo.Stream('GWP_CF_stream', GWP_CF_array, units='kg/hr')
 
 GWP_CFs['Electricity'] = 0.48 # kg CO2-eq/kWh
 
-# Everything excluding the C/N fluxes (which is from DayCent)
+# Everything excluding farming
+# (farming = soil emissions + field chemicals + field operations),
+# the rest from DayCent/assumptions in the spreadsheet
 # Table S6 from Wendt et al., Techno-Economic Assessment of a Chopped Feedstock
 # Logistics Supply Chain for Corn Stover. Front. Energy Res. 2018, 6.
 # https://doi.org/10.3389/fenrg.2018.00090.
