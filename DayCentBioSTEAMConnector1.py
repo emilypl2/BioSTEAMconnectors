@@ -252,7 +252,7 @@ def nonsoil(fertapp):
         emissions.append(chemop + fertapp[index]*3.79 + (74047*(.223925/10000)*7.88))
     return emissions
 
-def MESPPrices(var):
+def MESPPrices(var,time):
     '''
     converts yield (g corn/m^2 harvest) to prices ($/dryton cornstover)
     then finds the MESP ($/gal)
@@ -272,16 +272,26 @@ def MESPPrices(var):
         total cost per year ($/dryton cornstover)
 
     '''
+    outputs = pd.DataFrame()
+    outputs['years'] = time
     temp = []
     TotalCost = []
     drytonacre = []
+    Feed = []
+    Log = []
+    Bio = []
+    Feedratio = []
+    Logratio = []
     for index in range(len(var)):
         temp.append(var[index]*(.5)) # g cornstover / m^2 year
         temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
         # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
         drytonacre.append(temp[index])
-        TotalCost.append((14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54)
+        cost = (14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54
+        TotalCost.append(cost)
+        Feedratio.append(((14.88/temp[index]) + 23.54) / cost)
+        Logratio.append(((69.14/temp[index]) + 22.4 + 13.23 + 1.27) / cost)
     price = []
     ethanolprice = []
     for i in range(len(TotalCost)):
@@ -289,7 +299,14 @@ def MESPPrices(var):
         MESP = cornstover_tea.solve_price(ethanol)
         MESP = MESP*cs.ethanol_density_kggal
         price.append(MESP)
-    return price, drytonacre, TotalCost
+        Feed.append((MESP - 1.4)*Feedratio[i])
+        Log.append((MESP - 1.4)*Logratio[i])
+        Bio.append(1.4)
+    outputs['MESP [$/gal]'] = price
+    outputs['Feedstock [$/gal'] = Feed
+    outputs['Logistics & Preprocessing [$/gal]'] = Log
+    outputs['Biorefinery [$/gal]'] = Bio
+    return outputs, drytonacre, TotalCost
     
 def percornstover(chem_list,cropyield):
     #converts a variable to variable / kg cornstover
@@ -421,7 +438,7 @@ cornstover_tea = cs.cornstover_tea
 ethanol = cs.ethanol
 
 #generate MESP dataframe
-MESP, dryton_acre, dollarperton = MESPPrices(cyield)
+MESP, dryton_acre, dollarperton = MESPPrices(cyield,year_summary.iloc[:,0])
 
 #defining ratio and kg CO2eq / kg cornstover variables for each chemical
 ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
