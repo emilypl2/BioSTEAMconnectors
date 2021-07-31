@@ -147,14 +147,14 @@ def pull_variable(index, results):
     return variable
 
 # Yalin: definitely use array here, then you can just do
-# (0.25*strmac2 + 0.01*NOflux + volpac)/28*44
+# (0.25*strmac2lis + 0.01*NOflux + volpac)/28*44
 def N2Oindirect():
     # g N2O-N/m^2 converted to N2O then CO2e
     #finds indirect N2O emissions
     count_up = 0
     N2Oindirect = []
     for index in range(len(NOflux)):
-        calculation = ((0.025*(strmac2[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/14)*44 #N2O/m^2
+        calculation = ((0.025*(strmac2lis[count_up] - strmac2harv[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/28)*44 #N2O/m^2
         convert = calculation*298 #CO2/m^2
         N2Oindirect.append(convert)
         count_up += 1
@@ -221,7 +221,7 @@ def cropyield(crmvst,cgrain):
     for i in range(len(cgrain)):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
-        cropyield = cgrain[:] / .425
+        cropyield = (cgrain[:] / .425)*(1-.07) # 7% storage loss
     else:
         cropyield = crmvst[:]
     return cropyield
@@ -232,6 +232,25 @@ def totalCH4(ox, prod):
     for index in range(len(ox)):
         CH4new.append(prod[index]-ox[index])
     return CH4new
+
+def nonsoil(fertapp): 
+    '''
+
+    Parameters
+    ----------
+    fertapp : list
+        amount of nitrogen fertilizer applied since previous HARV event
+
+    Returns
+    -------
+    None.
+
+    '''
+    chemop = 28.7 + 4.99 + 6.4 + 1.1 + 0.66 + 1.47 + 0.51 + 1.17
+    emissions = []
+    for index in range(len(fertapp)):
+        emissions.append(chemop + fertapp[index]*3.79 + (74047*(.223925/10000)*7.88))
+    return emissions
 
 def MESPPrices(var):
     '''
@@ -261,7 +280,6 @@ def MESPPrices(var):
         temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
         # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
-        temp[index] *= (1 - .07) #dryton/arce (15% moisture conetent of stover, 7% storage loss)
         drytonacre.append(temp[index])
         TotalCost.append((14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54)
     price = []
@@ -284,20 +302,18 @@ def percornstover(chem_list,cropyield):
     return perkg
 
 
-def calc_emissions(inputs,time):
+def calc_emissions(inputs,time,names):
     #generates emissions (GWP) dataframe
     outputs = pd.DataFrame()
     outputs['years'] = time
     count = 0
-    names = ['GWP_Total (kg CO2 eq/kg feedstock)','GWP_N2Ototal (kg CO2 eq/kg feedstock)','N2Oflux (kg CO2 eq/kg feedstock)',
-             'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/kg feedstock)', 'CO2flux (kg CO2 eq/kg feedstock)',
-             'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/kg feedstock)']
-    GWP = [1,1,0,0,1,0,0,1]
+    GWP = [1,1,0,0,1,0,0,1,1]
     for i in range(len(inputs)):
         templist = []
         if GWP[i] == 1:
             for index in range(len(inputs[i])):
-                value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)?
+                value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)? 
+                value = value*2.98668849 #convert from per kg ethanol to gal ethanol
                 templist.append(value)
         else:
             for index in range(len(inputs[i])):
@@ -312,6 +328,31 @@ def add2(source1, source2):
     for index in range(len(source1)):
         total.append(source1[index] + source2[index])
     return total
+
+def valueratio(cropyield, dollarperton): 
+    cornprice = 241.6654953 #$ per dryton
+    monratio = []
+    for index in range(len(cropyield)):
+        cornstovervalue = (cropyield[index]*.5)*dollarperton[index]
+        cornvalue = (cropyield[index])*cornprice
+        monratio.append(cornstovervalue/(cornstovervalue + cornvalue))
+    return monratio
+    
+def calc_emissions_mon(inputs,time,names):
+    #generates emissions (GWP) dataframe w monetary ratio
+    outputs = pd.DataFrame()
+    outputs['years'] = time
+    count = 0
+    for i in range(len(inputs)):
+        templist = []
+        for index in range(len(inputs[i])):
+            value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)?
+            value = value*2.98668849 #convert from per kg ethanol to gal ethanol
+            value = value*monetaryratio[count] #implement monetary ratio
+            templist.append(value)
+        outputs[names[count]] = templist
+        count += 1
+    return outputs
 
 #defines paths to workspace
 target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
@@ -337,10 +378,12 @@ year_summary = pd.read_csv('year_summary.csv')
 methane = pd.read_csv('methane.csv')
 
 #from the dataframes, separating important variables
-N2Oflux = ((year_summary.iloc[:,1])/14)*44*298 #g N/m^2 y
+N2Oflux = ((year_summary.iloc[:,1])/28)*44*298 #g N/m^2 y
 NOflux = year_summary.iloc[:,2] #g N/m^2 y
 cgrain = harvest.iloc[:,6]  #g C/m^2 harvest
 crmvst = harvest.iloc[:,10] #g C/m^2 harvest
+strmac2harv = harvest.iloc[:,39] #g N/m^2 y
+fertapp = harvest.iloc[:,31]
 CH4_ox = convertCH4(methane.iloc[:,21]) #g C/m^2 d
 CH4_prod = convertCH4(methane.iloc[:,18]) #g C/m^2 d
 
@@ -356,17 +399,18 @@ lis_fpath = 'schedule.lis'
 lis_results = read_full_out(lis_fpath, 2, 1)
 shape = len(lis_results[0])
 volpac_index = shape - 3 #g N/m^2 y
-strmac2_index = shape - 2 #g N/m^2 y
+strmac2lis_index = shape - 2 #g N/m^2 y
 somtc_index = shape - 1 #g N/m^2 y
 volpac = pull_variable(volpac_index, lis_results)
 volpac.pop(0)
-strmac2 = pull_variable(strmac2_index, lis_results)
-strmac2.pop(0)
+strmac2lis = pull_variable(strmac2lis_index, lis_results)
+strmac2lis.pop(0)
 somtc = pull_variable(somtc_index, lis_results)
 
 #finding N2O from indirect sources and CO2 flux
 N2Oindirect = N2Oindirect() # g N2O-N/m^2 to g CO2e /m^2 d
 CO2flux = CO2flux() #gC/m^2 to g CO2e/m^2
+nonsoil = nonsoil(fertapp)
 
 #finding yield variable and converting to price/dryton and dryton/acre
 cyield = cropyield(crmvst,cgrain)
@@ -388,17 +432,24 @@ CO2eq_per_kg_cornstover_from_CO2 = percornstover(CO2flux, dryton_acre)
 CO2eq_per_kg_cornstover_from_CH4_ox = percornstover(CH4_oxyear, dryton_acre)
 CO2eq_per_kg_cornstover_from_CO2_total = add2(CO2eq_per_kg_cornstover_from_CO2,CO2eq_per_kg_cornstover_from_CH4_ox)
 CO2eq_per_kg_cornstover_from_CH4 = percornstover(CH4, dryton_acre)
-CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total))
-inputs = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
-          CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4)
-
+CO2eq_per_kg_cornstover_from_nonsoil = percornstover(nonsoil, dryton_acre)
+names1 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','N2Oflux (kg CO2 eq/kg feedstock)',
+             'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/gal ethanol)', 'CO2flux (kg CO2 eq/kg feedstock)',
+             'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
+CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_nonsoil, add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total)))
+inputsfeed = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
+          CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
 #generate emissions dataframe
-emissionsdf = calc_emissions(inputs,time = year_summary.iloc[:,0])
-
+emissionsdffeedstock = calc_emissions(inputsfeed,year_summary.iloc[:,0],names1)
+monetaryratio = valueratio(cyield, dollarperton)
+names2 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','GWP_CO2total (kg CO2 eq/gal ethanol)',
+          'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
+inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
+emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
 
 # %%
-# target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
-# os.chdir(target_path)
+target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
+os.chdir(target_path)
 # Additional codes added by Yalin for LCA accounting
 from _lca_cornstover import GWP_CF_stream, GWP_CFs
 
@@ -427,12 +478,12 @@ def get_GWP():
     return cs_processing_GWP, material_GWP, power_GWP
 
 cs_processing_GWP, material_GWP, power_GWP = get_GWP()
-emissions_from_daycent = np.array(emissionsdf['GWP_Total (kg CO2 eq/kg feedstock)'])
+emissions_from_daycent = np.array(emissionsdfmon['GWP_Total (kg CO2 eq/gal ethanol)'])
 # Using a mass allocation factor of 0.5,
 # (based on the assumption that corn:cornstover = 1:1)
 # total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
  #emissions for daycent total GWP
-GWPethanolfromcornstover = 0.5*emissions_from_daycent+cs_processing_GWP+material_GWP+power_GWP
+GWPethanolfromcornstover = emissions_from_daycent+(2.98668849*(cs_processing_GWP+material_GWP+power_GWP)) #the emissions from daycent was multiplied by .5, why?
 #smaller than 0
 # As a comparison, the cornstover-derived ethanol has a GWP of
 # 0.19 CO2-eq/kg ethanol
