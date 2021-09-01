@@ -282,12 +282,14 @@ def MESPPrices(var,time):
     Bio = []
     Feedratio = []
     Logratio = []
+    replaceharv = []
     for index in range(len(var)):
         temp.append(var[index]*(.5)) # g cornstover / m^2 year
         temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
         # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
         drytonacre.append(temp[index])
+        replaceharv.append((14.88/temp[index]) + (69.14/temp[index]) )
         cost = (14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54
         TotalCost.append(cost)
         Feedratio.append(((14.88/temp[index]) + 23.54) / cost)
@@ -306,7 +308,7 @@ def MESPPrices(var,time):
     outputs['Feedstock [$/gal'] = Feed
     outputs['Logistics & Preprocessing [$/gal]'] = Log
     outputs['Biorefinery [$/gal]'] = Bio
-    return outputs, drytonacre, TotalCost
+    return outputs, drytonacre, TotalCost, replaceharv
     
 def percornstover(chem_list,cropyield):
     #converts a variable to variable / kg cornstover
@@ -438,7 +440,7 @@ cornstover_tea = cs.cornstover_tea
 ethanol = cs.ethanol
 
 #generate MESP dataframe
-MESP, dryton_acre, dollarperton = MESPPrices(cyield,year_summary.iloc[:,0])
+MESP, dryton_acre, dollarperton, replaceharv = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
 
 #defining ratio and kg CO2eq / kg cornstover variables for each chemical
 ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
