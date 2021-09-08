@@ -4,7 +4,6 @@ Created on Thu Jul  8 15:16:48 2021
 
 @author: Empli
 """
-
 #import necessary packages
 import os
 import subprocess
@@ -139,50 +138,35 @@ def pull_variable(index, results):
     #results is your results list, most likely lis_results
     count_down = len(results)-1
     count_up = 0
-    variable = []
+    variable = np.empty((0,0))
     while count_down >= 0:
-        variable.append(results[count_up][index])
+        variable = np.append(variable, results[count_up][index])
         count_up = count_up + 1
         count_down = count_down - 1
     return variable
 
-# Yalin: definitely use array here, then you can just do
-# (0.25*strmac2lis + 0.01*NOflux + volpac)/28*44
 def N2Oindirect():
     # g N2O-N/m^2 converted to N2O then CO2e
     #finds indirect N2O emissions
-    count_up = 0
-    N2Oindirect = []
-    for index in range(len(NOflux)):
-        calculation = ((0.025*(strmac2lis[count_up] - strmac2harv[count_up]) + (0.01*(NOflux[count_up] + volpac[count_up])))/28)*44 #N2O/m^2
-        convert = calculation*298 #CO2/m^2
-        N2Oindirect.append(convert)
-        count_up += 1
+    N2Oindirect = (((0.025*(strmac2lis - strmac2harv) + (0.01*(NOflux + volpac)))/28)*44)*298 #CO2/m^2
     return N2Oindirect
+
 
 def CO2flux():
     #finds each CO2flux per year and adds them for a total CO2 flux
     #gC/m^2 converted to gCO2/m^2
-    CO2flux = 0
     count_up = 0
-    CO2flux = []
+    CO2flux = np.empty((0,0))
     for index in range(len(somtc)-1):
-        difference = ((somtc[count_up] - somtc[count_up+1])/12)*44
-        CO2flux.append(difference)
+        CO2flux = np.append(CO2flux,somtc[count_up] - somtc[count_up+1])
         count_up += 1
+    CO2flux = (CO2flux/12)*44
     return CO2flux
 
 def convertCH4(var):
     #converts gC/m^2 to gCH4/m^2 gCO2eq/m^2
-    count_up = 0
-    CtoCH4 = []
-    convertvar = []
-    for index in range(len(var)):
-        CtoCH4.append((var[count_up]/12) * (12.011 + 4*(1.008)))
-        convertvar.append(25*CtoCH4[count_up])
-        count_up += 1
-    count_up = 0
-    return convertvar
+    CtoCH4toCO2eq = ((var/12) * (12.011 + 4*(1.008)))*25
+    return CtoCH4toCO2eq
 
 # Yalin: I didn't understand the function, what is 2000 doing?
 # I found that you could use `calender` (built-in module) to check leap year
@@ -211,7 +195,7 @@ def daystoyears(var):
 # def cropyield(crmvst, cgrain, C_frac=0.425):
 # ...
 # cropyield = cgrain[:] / C_frac
-def cropyield(crmvst,cgrain):
+def cropyield(crmvst,cgrain, C_frac = 0.425):
     #determines if crop is a grain or grass
     #what variable has yield of crop
     crmvstsum = 0
@@ -221,16 +205,14 @@ def cropyield(crmvst,cgrain):
     for i in range(len(cgrain)):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
-        cropyield = (cgrain[:] / .425)*(1-.07) # 7% storage loss
+        cropyield = (cgrain[:] / C_frac)*(1-.07) # 7% storage loss
     else:
         cropyield = crmvst[:]
     return cropyield
 
 def totalCH4(ox, prod):
     #subtracts the produced CH4 by the oxidized CH4 to get net CH4
-    CH4new = []
-    for index in range(len(ox)):
-        CH4new.append(prod[index]-ox[index])
+    CH4new = prod - ox
     return CH4new
 
 def nonsoil(fertapp): 
@@ -247,9 +229,7 @@ def nonsoil(fertapp):
 
     '''
     chemop = 28.7 + 4.99 + 6.4 + 1.1 + 0.66 + 1.47 + 0.51 + 1.17
-    emissions = []
-    for index in range(len(fertapp)):
-        emissions.append(chemop + fertapp[index]*3.79 + (74047*(.223925/10000)*7.88))
+    emissions = chemop + fertapp*3.79 + (74047*(.223925/10000)*7.88)
     return emissions
 
 def MESPPrices(var,time):
@@ -274,52 +254,41 @@ def MESPPrices(var,time):
     '''
     outputs = pd.DataFrame()
     outputs['years'] = time
-    temp = []
-    TotalCost = []
-    drytonacre = []
-    Feed = []
-    Log = []
-    Bio = []
-    Feedratio = []
-    Logratio = []
-    replaceharv = []
-    for index in range(len(var)):
-        temp.append(var[index]*(.5)) # g cornstover / m^2 year
-        temp[index] = temp[index]*(1/907185)*(4046.86/1) #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre) # ton/acre
-        # Yalin: I think you should do (i.e., 7% is dry storage loss)
+    
+    # .5cornstover / corn #(1 ton/ 907185 gram)*(4046.86 m^2 / 1 acre)
+    drytonacre = var*.5*(1/907185)*(4046.86/1) # ton cornstover/acre
+     # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
-        drytonacre.append(temp[index])
-        replaceharv.append((14.88/temp[index]) + (69.14/temp[index]) )
-        cost = (14.88 / temp[index]) + (69.14 / temp[index]) + 22.4 + 13.23 + 1.27 + 23.54
-        TotalCost.append(cost)
-        Feedratio.append(((14.88/temp[index]) + 23.54) / cost)
-        Logratio.append(((69.14/temp[index]) + 22.4 + 13.23 + 1.27) / cost)
-    price = []
-    ethanolprice = []
+        #for some reason this ^^ was deleted at some point, do we remember why? 
+    replaceharv = (14.88/drytonacre) + (69.14/drytonacre)
+    TotalCost = (14.88/drytonacre) + (69.14/drytonacre) + 22.4 + 13.23 + 1.27 + 23.54
+    Feedratio = ((14.88/drytonacre) + 23.54)/TotalCost 
+    Logratio = ((69.14/drytonacre) + 22.4 + 13.23 + 1.27)/TotalCost 
+    price = np.empty((0,0))
+    Feed = np.empty((0,0))
+    Log = np.empty((0,0))
+    Bio = np.empty((0,0))
     for i in range(len(TotalCost)):
         cornstover.price = TotalCost[i] * (1/907.185) # 1 ton is 907.185 kg
         MESP = cornstover_tea.solve_price(ethanol)
         MESP = MESP*cs.ethanol_density_kggal
-        price.append(MESP)
-        Feed.append((MESP - 1.4)*Feedratio[i])
-        Log.append((MESP - 1.4)*Logratio[i])
-        Bio.append(1.4)
+        price = np.append(price, MESP)
+        Feed = np.append(Feed, (MESP - 1.4)*Feedratio[i])
+        Log = np.append(Log, (MESP - 1.4)*Logratio[i])
+        Bio = np.append(Bio, [1.4])
     outputs['MESP [$/gal]'] = price
     outputs['Feedstock [$/gal'] = Feed
     outputs['Logistics & Preprocessing [$/gal]'] = Log
     outputs['Biorefinery [$/gal]'] = Bio
-    return outputs, drytonacre, TotalCost, replaceharv
+    return price, drytonacre, TotalCost, replaceharv, outputs
     
 def percornstover(chem_list,cropyield):
     #converts a variable to variable / kg cornstover
-    perkg = []
-    for index in range(len(chem_list)):
-        gtokg = chem_list[index] / 1000 # g CO2e /m^2 to kg CO2e / m^2
-        m2toacre = gtokg * 4046.86 #kg CO2e / m^2 to kg CO2e / acre
-        tontokg = (cropyield[index]*907.185) #dryton/acre to kg/acre
-        perkg.append(m2toacre / tontokg)
+    gtokg = chem_list/1000 # g CO2e /m^2 to kg CO2e / m^2
+    m2toacre = gtokg * 4046.86 #kg CO2e / m^2 to kg CO2e / acre
+    tontokg = cropyield*907.185 #dryton/acre to kg/acre
+    perkg= m2toacre /tontokg
     return perkg
-
 
 def calc_emissions(inputs,time,names):
     #generates emissions (GWP) dataframe
@@ -330,31 +299,24 @@ def calc_emissions(inputs,time,names):
     for i in range(len(inputs)):
         templist = []
         if GWP[i] == 1:
-            for index in range(len(inputs[i])):
-                value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)? 
-                value = value*2.98668849 #convert from per kg ethanol to gal ethanol
-                templist.append(value)
+            value = (inputs[i] / ratio)*2.98668849 #convert from per kg ethanol to gal ethanol
+            templist = np.append(templist, value)
         else:
-            for index in range(len(inputs[i])):
-                templist.append(inputs[i][index])
+              templist = np.append(templist, inputs[i])
         outputs[names[count]] = templist
         count += 1
     return outputs
 
 def add2(source1, source2):
     #adds two lists
-    total = []
-    for index in range(len(source1)):
-        total.append(source1[index] + source2[index])
+    total = source1 + source2
     return total
 
 def valueratio(cropyield, dollarperton): 
     cornprice = 241.6654953 #$ per dryton
-    monratio = []
-    for index in range(len(cropyield)):
-        cornstovervalue = (cropyield[index]*.5)*dollarperton[index]
-        cornvalue = (cropyield[index])*cornprice
-        monratio.append(cornstovervalue/(cornstovervalue + cornvalue))
+    cornstovervalue = (cropyield*.5)*dollarperton
+    cornvalue = cropyield*cornprice
+    monratio = (cornstovervalue/(cornstovervalue + cornvalue))
     return monratio
     
 def calc_emissions_mon(inputs,time,names):
@@ -363,12 +325,10 @@ def calc_emissions_mon(inputs,time,names):
     outputs['years'] = time
     count = 0
     for i in range(len(inputs)):
-        templist = []
-        for index in range(len(inputs[i])):
-            value = inputs[i][index] / ratio # Yalin: why multiply the ratio (I thought should divide)?
-            value = value*2.98668849 #convert from per kg ethanol to gal ethanol
-            value = value*monetaryratio[count] #implement monetary ratio
-            templist.append(value)
+        templist = np.empty((0,0))
+        value = (inputs[i] /ratio)*2.98668849 #convert from per kg ethanol to gal ethanol
+        value = value * monetaryratio
+        templist = np.append(templist, value)
         outputs[names[count]] = templist
         count += 1
     return outputs
@@ -397,18 +357,18 @@ year_summary = pd.read_csv('year_summary.csv')
 methane = pd.read_csv('methane.csv')
 
 #from the dataframes, separating important variables
-N2Oflux = ((year_summary.iloc[:,1])/28)*44*298 #g N/m^2 y
-NOflux = year_summary.iloc[:,2] #g N/m^2 y
-cgrain = harvest.iloc[:,6]  #g C/m^2 harvest
-crmvst = harvest.iloc[:,10] #g C/m^2 harvest
-strmac2harv = harvest.iloc[:,39] #g N/m^2 y
-fertapp = harvest.iloc[:,31]
-CH4_ox = convertCH4(methane.iloc[:,21]) #g C/m^2 d
-CH4_prod = convertCH4(methane.iloc[:,18]) #g C/m^2 d
+N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*298) #g N/m^2 y
+NOflux = np.array(year_summary.iloc[:,2]) #g N/m^2 y
+cgrain = np.array(harvest.iloc[:,6])  #g C/m^2 harvest
+crmvst = np.array(harvest.iloc[:,10]) #g C/m^2 harvest
+strmac2harv = np.array(harvest.iloc[:,39]) #g N/m^2 y
+fertapp = np.array(harvest.iloc[:,31])
+CH4_ox = convertCH4(np.array(methane.iloc[:,21])) #g C/m^2 d
+CH4_prod = convertCH4(np.array(methane.iloc[:,18])) #g C/m^2 d
 
 #formatting methane variables
-CH4_oxyear = daystoyears(CH4_ox) # g CO2e /m^2 year
-CH4_prodyear = daystoyears(CH4_prod) # g CO2e /m^2 year
+CH4_oxyear = np.array(daystoyears(CH4_ox)) # g CO2e /m^2 year
+CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
 CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
 
 #setting path to .lis file
@@ -421,9 +381,9 @@ volpac_index = shape - 3 #g N/m^2 y
 strmac2lis_index = shape - 2 #g N/m^2 y
 somtc_index = shape - 1 #g N/m^2 y
 volpac = pull_variable(volpac_index, lis_results)
-volpac.pop(0)
+volpac = np.delete(volpac,0)
 strmac2lis = pull_variable(strmac2lis_index, lis_results)
-strmac2lis.pop(0)
+strmac2lis = np.delete(strmac2lis,0)
 somtc = pull_variable(somtc_index, lis_results)
 
 #finding N2O from indirect sources and CO2 flux
@@ -440,7 +400,7 @@ cornstover_tea = cs.cornstover_tea
 ethanol = cs.ethanol
 
 #generate MESP dataframe
-MESP, dryton_acre, dollarperton, replaceharv = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
+MESP, dryton_acre, dollarperton, replaceharv, MESPdf = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
 
 #defining ratio and kg CO2eq / kg cornstover variables for each chemical
 ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
