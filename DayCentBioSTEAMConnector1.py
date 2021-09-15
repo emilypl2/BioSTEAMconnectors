@@ -11,6 +11,7 @@ import time
 import pandas as pd
 import matplotlib
 import math
+import shutil
 import numpy as np
 matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -145,14 +146,14 @@ def pull_variable(index, results):
         count_down = count_down - 1
     return variable
 
-def N2Oindirect():
+def N2Oindirectcalc():
     # g N2O-N/m^2 converted to N2O then CO2e
     #finds indirect N2O emissions
     N2Oindirect = (((0.025*(strmac2lis - strmac2harv) + (0.01*(NOflux + volpac)))/28)*44)*298 #CO2/m^2
     return N2Oindirect
 
 
-def CO2flux():
+def CO2fluxcalc():
     #finds each CO2flux per year and adds them for a total CO2 flux
     #gC/m^2 converted to gCO2/m^2
     count_up = 0
@@ -215,7 +216,7 @@ def totalCH4(ox, prod):
     CH4new = prod - ox
     return CH4new
 
-def nonsoil(fertapp): 
+def nonsoilcalc(fertapp): 
     '''
 
     Parameters
@@ -333,139 +334,192 @@ def calc_emissions_mon(inputs,time,names):
         count += 1
     return outputs
 
+def output():
+    df = MESPdf
+    df.to_csv(r'%s\MESPdf.csv' % (target_path), index = False, header=True)
+    df = emissionsdffeedstock
+    df.to_csv(r'%s\FeedstockEmissions.csv' % (target_path), index = False, header=True)
+    df = emissionsdfmon
+    df.to_csv(r'%s\AllocationEmissions.csv' % (target_path), index = False, header=True)
+    df = GWPCornstover
+    df.to_csv(r'%s\GWPCornstover.csv' % (target_path), index = False, header=True)
+
+def reset(): 
+    os.remove("%s/AllocationEmissions.csv" % (target_path))
+    os.remove("%s/FeedstockEmissions.csv" % (target_path))
+    os.remove("%s/MESPdf.csv" % (target_path))
+    os.remove("%s/GWPCornstover.csv" % (target_path))
+    os.remove("%s/%s.lis" % (target_path, sch_file))
+    os.remove("%s/co2.csv" % (target_path))
+    os.remove("%s/harvest.csv" % (target_path))
+    os.remove("%s/methane.csv" % (target_path))
+    os.remove("%s/nflux.csv" % (target_path))
+    os.remove("%s/potcrp.csv" % (target_path))
+    os.remove("%s/potfor.csv" % (target_path))
+    os.remove("%s/potgt.csv" % (target_path))
+    os.remove("%s/resp.csv" % (target_path))
+    os.remove("%s/%s.bin" % (target_path, sch_file))
+    os.remove("%s/summary.csv" % (target_path))
+    os.remove("%s/year_summary.csv" % (target_path))
+
 #defines paths to workspace
 target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
 dc_path = "DayCent_CABBI.exe"
-sch_file = input("Input schedule file name (w/o .sch):")
-run_id = sch_file[:]
-outvars = "outvars.txt"
+#sch_file = input("Input schedule file name (w/o .sch):")
 dclist_path = "list100_DayCent-CABBI.exe"
 extend = input("Are you extending a file? y or n:")
 if extend == 'y':
     extension = input('File running DayCent extension with. Do not include .bin')
 else:
     extension = ""
+#delete = input("Do you need to delete a previous file iteration? y on n:")
+#if delete == 'y':
+    #resets daycent output by deleting old files/outputs in workspace
+    #reset()
 
-#runs daycent
-DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
+folder_list = ['Hogwarts','GothamCity','Metropolis']
 
-#from target path, takes methane.csv, year_summary.csv, and harvest.csv
-#to be used in the module
-os.chdir(target_path)
-harvest = pd.read_csv('harvest.csv')
-year_summary = pd.read_csv('year_summary.csv')
-methane = pd.read_csv('methane.csv')
-
-#from the dataframes, separating important variables
-N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*298) #g N/m^2 y
-NOflux = np.array(year_summary.iloc[:,2]) #g N/m^2 y
-cgrain = np.array(harvest.iloc[:,6])  #g C/m^2 harvest
-crmvst = np.array(harvest.iloc[:,10]) #g C/m^2 harvest
-strmac2harv = np.array(harvest.iloc[:,39]) #g N/m^2 y
-fertapp = np.array(harvest.iloc[:,31])
-CH4_ox = convertCH4(np.array(methane.iloc[:,21])) #g C/m^2 d
-CH4_prod = convertCH4(np.array(methane.iloc[:,18])) #g C/m^2 d
-
-#formatting methane variables
-CH4_oxyear = np.array(daystoyears(CH4_ox)) # g CO2e /m^2 year
-CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
-CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
-
-#setting path to .lis file
-lis_fpath = 'schedule.lis'
-
-#reading .lis file, reading the data, separating and formatting variables
-lis_results = read_full_out(lis_fpath, 2, 1)
-shape = len(lis_results[0])
-volpac_index = shape - 3 #g N/m^2 y
-strmac2lis_index = shape - 2 #g N/m^2 y
-somtc_index = shape - 1 #g N/m^2 y
-volpac = pull_variable(volpac_index, lis_results)
-volpac = np.delete(volpac,0)
-strmac2lis = pull_variable(strmac2lis_index, lis_results)
-strmac2lis = np.delete(strmac2lis,0)
-somtc = pull_variable(somtc_index, lis_results)
-
-#finding N2O from indirect sources and CO2 flux
-N2Oindirect = N2Oindirect() # g N2O-N/m^2 to g CO2e /m^2 d
-CO2flux = CO2flux() #gC/m^2 to g CO2e/m^2
-nonsoil = nonsoil(fertapp)
-
-#finding yield variable and converting to price/dryton and dryton/acre
-cyield = cropyield(crmvst,cgrain)
-
-#defining cornstover pieces
-cornstover = cs.cornstover
-cornstover_tea = cs.cornstover_tea
-ethanol = cs.ethanol
-
-#generate MESP dataframe
-MESP, dryton_acre, dollarperton, replaceharv, MESPdf = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
-
-#defining ratio and kg CO2eq / kg cornstover variables for each chemical
-ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
-CO2eq_per_kg_cornstover_from_N2O = percornstover(N2Oflux, dryton_acre)
-CO2eq_per_kg_cornstover_from_N2O_indirect = percornstover(N2Oindirect, dryton_acre)
-CO2eq_per_kg_cornstover_from_N2O_total = add2(CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect)
-CO2eq_per_kg_cornstover_from_CO2 = percornstover(CO2flux, dryton_acre)
-CO2eq_per_kg_cornstover_from_CH4_ox = percornstover(CH4_oxyear, dryton_acre)
-CO2eq_per_kg_cornstover_from_CO2_total = add2(CO2eq_per_kg_cornstover_from_CO2,CO2eq_per_kg_cornstover_from_CH4_ox)
-CO2eq_per_kg_cornstover_from_CH4 = percornstover(CH4, dryton_acre)
-CO2eq_per_kg_cornstover_from_nonsoil = percornstover(nonsoil, dryton_acre)
-names1 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','N2Oflux (kg CO2 eq/kg feedstock)',
-             'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/gal ethanol)', 'CO2flux (kg CO2 eq/kg feedstock)',
-             'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
-CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_nonsoil, add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total)))
-inputsfeed = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
-          CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
-#generate emissions dataframe
-emissionsdffeedstock = calc_emissions(inputsfeed,year_summary.iloc[:,0],names1)
-monetaryratio = valueratio(cyield, dollarperton)
-names2 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','GWP_CO2total (kg CO2 eq/gal ethanol)',
-          'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
-inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
-emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
-
-# %%
-target_path = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
-os.chdir(target_path)
-# Additional codes added by Yalin for LCA accounting
-from _lca_cornstover import GWP_CF_stream, GWP_CFs
-
-# All streams that contain LCA-relevant chemicals
-lca_streams = [
-    cs.denaturant,
-    cs.cellulase,
-    cs.sulfuric_acid,
-    cs.DAP,
-    cs.CSL,
-    cs.ammonia,
-    cs.FGD_lime,
-    cs.caustic,
-    cs.emissions,
-    ]
-
-# One stream that representing all chemicals
-lca_stream = tmo.Stream('lca_stream')
-lca_stream.mix_from(lca_streams)
-
-# Get the gross results
-def get_GWP():
-    cs_processing_GWP = GWP_CFs['Cornstover']/ratio
-    material_GWP = (GWP_CF_stream.mass*lca_stream.mass).sum()/ethanol.F_mass
-    power_GWP = cs.BT.power_utility.rate*GWP_CFs['Electricity']/ethanol.F_mass
-    return cs_processing_GWP, material_GWP, power_GWP
-
-cs_processing_GWP, material_GWP, power_GWP = get_GWP()
-emissions_from_daycent = np.array(emissionsdfmon['GWP_Total (kg CO2 eq/gal ethanol)'])
-# Using a mass allocation factor of 0.5,
-# (based on the assumption that corn:cornstover = 1:1)
-# total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
- #emissions for daycent total GWP
-GWPethanolfromcornstover = emissions_from_daycent+(2.98668849*(cs_processing_GWP+material_GWP+power_GWP)) #the emissions from daycent was multiplied by .5, why?
-#smaller than 0
-# As a comparison, the cornstover-derived ethanol has a GWP of
-# 0.19 CO2-eq/kg ethanol
-# in GREET 2020
-# GREET (https://greet.es.anl.gov/) is a model developed by ANL (Argonne National Lab)
-# for energy and emission accounting of fuels
+for item in folder_list:
+    folder_path = '%s/%s' % (target_path,item)
+    sch_file = item
+    run_id = sch_file[:]
+    outvars = "outvars.txt"
+    copy = ['crop.100','cult.100','fert.100','fix.100','harv.100','irri.100','site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth',
+            '%s.sch' % (item)]
+    
+    for file in copy:
+        shutil.copy("%s/%s" % (folder_path, file), target_path)
+        
+    DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
+    #runs daycent
+    
+    #from target path, takes methane.csv, year_summary.csv, and harvest.csv
+    #to be used in the module
+    os.chdir(target_path)
+    harvest = pd.read_csv('harvest.csv')
+    year_summary = pd.read_csv('year_summary.csv')
+    methane = pd.read_csv('methane.csv')
+    
+    #from the dataframes, separating important variables
+    N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*298) #g N/m^2 y
+    NOflux = np.array(year_summary.iloc[:,2]) #g N/m^2 y
+    cgrain = np.array(harvest.iloc[:,6])  #g C/m^2 harvest
+    crmvst = np.array(harvest.iloc[:,10]) #g C/m^2 harvest
+    strmac2harv = np.array(harvest.iloc[:,39]) #g N/m^2 y
+    fertapp = np.array(harvest.iloc[:,31])
+    CH4_ox = convertCH4(np.array(methane.iloc[:,21])) #g C/m^2 d
+    CH4_prod = convertCH4(np.array(methane.iloc[:,18])) #g C/m^2 d
+    
+    #formatting methane variables
+    CH4_oxyear = np.array(daystoyears(CH4_ox)) # g CO2e /m^2 year
+    CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
+    CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
+  
+    lis_fpath = "%s.lis" % (item)
+    
+    #reading .lis file, reading the data, separating and formatting variables
+    lis_results = read_full_out(lis_fpath, 2, 1)
+    shape = len(lis_results[0])
+    volpac_index = shape - 3 #g N/m^2 y
+    strmac2lis_index = shape - 2 #g N/m^2 y
+    somtc_index = shape - 1 #g N/m^2 y
+    volpac = pull_variable(volpac_index, lis_results)
+    volpac = np.delete(volpac,0)
+    strmac2lis = pull_variable(strmac2lis_index, lis_results)
+    strmac2lis = np.delete(strmac2lis,0)
+    somtc = pull_variable(somtc_index, lis_results)
+        
+    #finding N2O from indirect sources and CO2 flux
+    N2Oindirect = N2Oindirectcalc() # g N2O-N/m^2 to g CO2e /m^2 d
+    CO2flux = CO2fluxcalc() #gC/m^2 to g CO2e/m^2
+    nonsoil = nonsoilcalc(fertapp)
+    
+    #finding yield variable and converting to price/dryton and dryton/acre
+    cyield = cropyield(crmvst,cgrain)
+    
+    #defining cornstover pieces
+    cornstover = cs.cornstover
+    cornstover_tea = cs.cornstover_tea
+    ethanol = cs.ethanol
+    
+    #generate MESP dataframe
+    MESP, dryton_acre, dollarperton, replaceharv, MESPdf = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
+    
+    #defining ratio and kg CO2eq / kg cornstover variables for each chemical
+    ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
+    CO2eq_per_kg_cornstover_from_N2O = percornstover(N2Oflux, dryton_acre)
+    CO2eq_per_kg_cornstover_from_N2O_indirect = percornstover(N2Oindirect, dryton_acre)
+    CO2eq_per_kg_cornstover_from_N2O_total = add2(CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect)
+    CO2eq_per_kg_cornstover_from_CO2 = percornstover(CO2flux, dryton_acre)
+    CO2eq_per_kg_cornstover_from_CH4_ox = percornstover(CH4_oxyear, dryton_acre)
+    CO2eq_per_kg_cornstover_from_CO2_total = add2(CO2eq_per_kg_cornstover_from_CO2,CO2eq_per_kg_cornstover_from_CH4_ox)
+    CO2eq_per_kg_cornstover_from_CH4 = percornstover(CH4, dryton_acre)
+    CO2eq_per_kg_cornstover_from_nonsoil = percornstover(nonsoil, dryton_acre)
+    names1 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','N2Oflux (kg CO2 eq/kg feedstock)',
+              'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/gal ethanol)', 'CO2flux (kg CO2 eq/kg feedstock)',
+              'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
+    CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_nonsoil, add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total)))
+    inputsfeed = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
+                  CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
+    #generate emissions dataframe
+    emissionsdffeedstock = calc_emissions(inputsfeed,year_summary.iloc[:,0],names1)
+    monetaryratio = valueratio(cyield, dollarperton)
+    names2 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','GWP_CO2total (kg CO2 eq/gal ethanol)',
+              'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
+    inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
+    emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
+    
+    target_path2 = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
+    os.chdir(target_path2)
+    # Additional codes added by Yalin for LCA accounting
+    from _lca_cornstover import GWP_CF_stream, GWP_CFs
+    
+    # All streams that contain LCA-relevant chemicals
+    lca_streams = [
+        cs.denaturant,
+        cs.cellulase,
+        cs.sulfuric_acid,
+        cs.DAP,
+        cs.CSL,
+        cs.ammonia,
+        cs.FGD_lime,
+        cs.caustic,
+        cs.emissions,
+            ]
+    
+    # One stream that representing all chemicals
+    lca_stream = tmo.Stream('lca_stream')
+    lca_stream.mix_from(lca_streams)
+    
+    # Get the gross results
+    def get_GWP():
+        cs_processing_GWP = GWP_CFs['Cornstover']/ratio
+        material_GWP = (GWP_CF_stream.mass*lca_stream.mass).sum()/ethanol.F_mass
+        power_GWP = cs.BT.power_utility.rate*GWP_CFs['Electricity']/ethanol.F_mass
+        return cs_processing_GWP, material_GWP, power_GWP
+    
+    cs_processing_GWP, material_GWP, power_GWP = get_GWP()
+    emissions_from_daycent = np.array(emissionsdfmon['GWP_Total (kg CO2 eq/gal ethanol)'])
+    # Using a mass allocation factor of 0.5,
+    # (based on the assumption that corn:cornstover = 1:1)
+    # total_GWP (kg CO2-eq/kg ethanol) can be calculated as:
+    #emissions for daycent total GWP
+    GWPCornstover = pd.DataFrame()
+    GWPCornstover['GWPethanolfromcornstover']= emissions_from_daycent+(2.98668849*(cs_processing_GWP+material_GWP+power_GWP)) #the emissions from daycent was multiplied by .5, why?
+    #smaller than 0
+    # As a comparison, the cornstover-derived ethanol has a GWP of
+    # 0.19 CO2-eq/kg ethanol
+    # in GREET 2020
+    # GREET (https://greet.es.anl.gov/) is a model developed by ANL (Argonne National Lab)
+    # for energy and emission accounting of fuels
+    output()
+    outputs = ['MESPdf.csv','FeedstockEmissions.csv','AllocationEmissions.csv','GWPCornstover.csv']
+    for file in outputs:
+        shutil.copy("%s/%s" % (target_path, file), folder_path)
+    files = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv','%s.lis' % (sch_file),'co2.csv','harvest.csv','methane.csv','nflux.csv',
+         'potcrp.csv','potfor.csv','potgt.csv','resp.csv','%s.bin' % (sch_file),'summary.csv','year_summary.csv']
+    for file in files:
+        shutil.copy("%s/%s" % (target_path, file), folder_path)
+        os.remove("%s/%s" % (target_path, file))
+    for file in copy:
+        os.remove("%s/%s" % (target_path, file))
