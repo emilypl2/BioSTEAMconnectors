@@ -467,7 +467,7 @@ for item in folder_list:
     inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
     emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
     
-    os.chdir(f'{target_path}/PythonModule')
+    os.chdir(f'{target_path}/BioSTEAMconnectors-main')
     # Additional codes added by Yalin for LCA accounting
     from _lca_cornstover import GWP_CF_stream, GWP_CFs
     
