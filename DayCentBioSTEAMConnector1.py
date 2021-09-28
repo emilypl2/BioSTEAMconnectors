@@ -42,12 +42,12 @@ def DayCent (dc_path, sch_file, run_id, outvars, dclist_path="", extension =""):
     if extension:
         # Yalin: with Python 3, you can use the f-string to improve the readability
         # subprocess.call(f'{dc_path} -s {sch_file} -n {run_id} -e {extension}', shell=True)
-        subprocess.call("%s -s %s -n %s -e %s" % (dc_path, sch_file, run_id, extension), shell = True)
+        subprocess.call(f'{dc_path} -s {sch_file} -n {run_id} -e {extension}', shell = True)
     else:
-        subprocess.call("%s -s %s -n %s" % (dc_path, sch_file, run_id), shell = True)
+        subprocess.call(f'{dc_path} -s {sch_file} -n {run_id}', shell = True)
         time.sleep(10)
     if dclist_path:
-       subprocess.call("%s %s %s %s" % (dclist_path, run_id, run_id, outvars), shell = True)
+       subprocess.call(f'{dclist_path} {run_id} {run_id} {outvars}', shell = True)
 
 def auto_type(datum): # Yalin: I'm amazed to see the singular form of data
     #Convert data types to integer or float if possible
@@ -345,22 +345,15 @@ def output():
     df.to_csv(r'%s\GWPCornstover.csv' % (target_path), index = False, header=True)
 
 def reset(): 
-    os.remove("%s/AllocationEmissions.csv" % (target_path))
-    os.remove("%s/FeedstockEmissions.csv" % (target_path))
-    os.remove("%s/MESPdf.csv" % (target_path))
-    os.remove("%s/GWPCornstover.csv" % (target_path))
-    os.remove("%s/%s.lis" % (target_path, sch_file))
-    os.remove("%s/co2.csv" % (target_path))
-    os.remove("%s/harvest.csv" % (target_path))
-    os.remove("%s/methane.csv" % (target_path))
-    os.remove("%s/nflux.csv" % (target_path))
-    os.remove("%s/potcrp.csv" % (target_path))
-    os.remove("%s/potfor.csv" % (target_path))
-    os.remove("%s/potgt.csv" % (target_path))
-    os.remove("%s/resp.csv" % (target_path))
-    os.remove("%s/%s.bin" % (target_path, sch_file))
-    os.remove("%s/summary.csv" % (target_path))
-    os.remove("%s/year_summary.csv" % (target_path))
+    for item in folder_list:
+        sch_file = item
+        FileList = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv', f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv','potcrp.csv','potfor.csv','potgt.csv',
+                'resp.csv',f'{sch_file}.bin','summary.csv','year_summary.csv','bio.csv','soiln.csv','soiltavg.csv','soiltmax.csv','soiltmin.csv','stemp_dx.csv','vswc.csv','watrbal.csv','wfps.csv','wflux.csv',
+                'livec.csv','deadc.csv','soilc.csv','sycs.csv','tgmonth.csv','dN2lyr.csv','dN2Olyr.csv','dels.csv','dc_sip.csv','harvestgt.csv','cflows.csv','year_cflows.csv','daily.csv','psyn.csv']
+        for i in FileList:
+            indicate = os.path.isfile(f'{target_path}/{item}/{i}')  
+            if indicate == True:
+                os.remove(f'{target_path}/{item}/{i}')
 
 #defines paths to workspace
 target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
@@ -372,23 +365,28 @@ if extend == 'y':
     extension = input('File running DayCent extension with. Do not include .bin')
 else:
     extension = ""
-#delete = input("Do you need to delete a previous file iteration? y on n:")
-#if delete == 'y':
-    #resets daycent output by deleting old files/outputs in workspace
-    #reset()
 
-folder_list = ['Hogwarts','GothamCity','Metropolis']
+folder_list = []
+first = input('First folder name:')
+folder_list.append(first)
+addfolder = input('Would you like to add another folder? y or n:')
+while addfolder == 'y':
+    new = input('New folder name:')
+    folder_list.append(new)
+    addfolder = input('Would you like to add another folder? y or n:')
+
+reset()
 
 for item in folder_list:
-    folder_path = '%s/%s' % (target_path,item)
+    folder_path = f'{target_path}/{item}'
     sch_file = item
     run_id = sch_file[:]
     outvars = "outvars.txt"
     copy = ['crop.100','cult.100','fert.100','fix.100','harv.100','irri.100','site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth',
-            '%s.sch' % (item)]
+            f'{item}.sch']
     
     for file in copy:
-        shutil.copy("%s/%s" % (folder_path, file), target_path)
+        shutil.copy(f"{folder_path}/{file}",target_path)
         
     DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
     #runs daycent
@@ -415,7 +413,7 @@ for item in folder_list:
     CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
     CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
   
-    lis_fpath = "%s.lis" % (item)
+    lis_fpath = f"{item}.lis"
     
     #reading .lis file, reading the data, separating and formatting variables
     lis_results = read_full_out(lis_fpath, 2, 1)
@@ -469,8 +467,7 @@ for item in folder_list:
     inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
     emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
     
-    target_path2 = r'C:\Users\Empli\OneDrive - University of Illinois - Urbana\Documents\GitHub\PythonModule'
-    os.chdir(target_path2)
+    os.chdir(f'{target_path}/PythonModule')
     # Additional codes added by Yalin for LCA accounting
     from _lca_cornstover import GWP_CF_stream, GWP_CFs
     
@@ -515,11 +512,11 @@ for item in folder_list:
     output()
     outputs = ['MESPdf.csv','FeedstockEmissions.csv','AllocationEmissions.csv','GWPCornstover.csv']
     for file in outputs:
-        shutil.copy("%s/%s" % (target_path, file), folder_path)
-    files = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv','%s.lis' % (sch_file),'co2.csv','harvest.csv','methane.csv','nflux.csv',
-         'potcrp.csv','potfor.csv','potgt.csv','resp.csv','%s.bin' % (sch_file),'summary.csv','year_summary.csv']
+        shutil.copy(f"{target_path}/{file}", folder_path)
+    files = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv',f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv',
+         'potcrp.csv','potfor.csv','potgt.csv','resp.csv',f'{sch_file}.bin','summary.csv','year_summary.csv']
     for file in files:
-        shutil.copy("%s/%s" % (target_path, file), folder_path)
-        os.remove("%s/%s" % (target_path, file))
+        shutil.copy(f"{target_path}/{file}", folder_path)
+        os.remove(f"{target_path}/{file}")
     for file in copy:
-        os.remove("%s/%s" % (target_path, file))
+        os.remove(f"{target_path}/{file}")
