@@ -229,8 +229,8 @@ def nonsoilcalc(fertapp):
     None.
 
     '''
-    chemop = 28.7 + 4.99 + 6.4 + 1.1 + 0.66 + 1.47 + 0.51 + 1.17
-    emissions = chemop + fertapp*3.79 + (74047*(.223925/10000)*7.88)
+    chemop = nonsoil[0] + nonsoil[1]
+    emissions = chemop + fertapp*nonsoil[3] + (nonsoil[4]*(nonsoil[5]/10000)*nonsoil[2])
     return emissions
 
 def MESPPrices(var,time):
@@ -261,10 +261,10 @@ def MESPPrices(var,time):
      # Yalin: I think you should do (i.e., 7% is dry storage loss)
         # temp[index] *= (1-0.15)*(1-0.07)
         #for some reason this ^^ was deleted at some point, do we remember why? 
-    replaceharv = (14.88/drytonacre) + (69.14/drytonacre)
-    TotalCost = (14.88/drytonacre) + (69.14/drytonacre) + 22.4 + 13.23 + 1.27 + 23.54
-    Feedratio = ((14.88/drytonacre) + 23.54)/TotalCost 
-    Logratio = ((69.14/drytonacre) + 22.4 + 13.23 + 1.27)/TotalCost 
+    replaceharv = (TEAValues[6]/drytonacre) + (TEAValues[17]/drytonacre)
+    TotalCost = (TEAValues[6]/drytonacre) + (TEAValues[17]/drytonacre) + TEAValues[19] + TEAValues[21] + TEAValues[23] + TEAValues[8]
+    Feedratio = ((TEAValues[6]/drytonacre) + TEAValues[8])/TotalCost 
+    Logratio = ((TEAValues[17]/drytonacre) + TEAValues[19] + TEAValues[21] + TEAValues[23])/TotalCost 
     price = np.empty((0,0))
     Feed = np.empty((0,0))
     Log = np.empty((0,0))
@@ -354,49 +354,15 @@ def reset():
             indicate = os.path.isfile(f'{target_path}/{item}/{i}')  
             if indicate == True:
                 os.remove(f'{target_path}/{item}/{i}')
-
-#defines paths to workspace
-target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
-dc_path = "DayCent_CABBI.exe"
-#sch_file = input("Input schedule file name (w/o .sch):")
-dclist_path = "list100_DayCent-CABBI.exe"
-extend = input("Are you extending a file? y or n:")
-if extend == 'y':
-    extension = input('File running DayCent extension with. Do not include .bin')
-else:
-    extension = ""
-
-folder_list = []
-first = input('First folder name:')
-folder_list.append(first)
-addfolder = input('Would you like to add another folder? y or n:')
-while addfolder == 'y':
-    new = input('New folder name:')
-    folder_list.append(new)
-    addfolder = input('Would you like to add another folder? y or n:')
-
-reset()
-
-for item in folder_list:
-    folder_path = f'{target_path}/{item}'
-    sch_file = item
-    run_id = sch_file[:]
-    outvars = "outvars.txt"
-    copy = ['crop.100','cult.100','fert.100','fix.100','harv.100','irri.100','site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth',
-            f'{item}.sch']
-    
-    for file in copy:
-        shutil.copy(f"{folder_path}/{file}",target_path)
-        
-    DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
-    #runs daycent
-    
+def setupvar():
     #from target path, takes methane.csv, year_summary.csv, and harvest.csv
     #to be used in the module
     os.chdir(target_path)
     harvest = pd.read_csv('harvest.csv')
     year_summary = pd.read_csv('year_summary.csv')
     methane = pd.read_csv('methane.csv')
+    TEAValues = pd.read_csv('TEAValues.csv')
+    nonsoil = pd.read_csv('non-soil.csv')
     
     #from the dataframes, separating important variables
     N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*298) #g N/m^2 y
@@ -407,12 +373,8 @@ for item in folder_list:
     fertapp = np.array(harvest.iloc[:,31])
     CH4_ox = convertCH4(np.array(methane.iloc[:,21])) #g C/m^2 d
     CH4_prod = convertCH4(np.array(methane.iloc[:,18])) #g C/m^2 d
-    
-    #formatting methane variables
-    CH4_oxyear = np.array(daystoyears(CH4_ox)) # g CO2e /m^2 year
-    CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
-    CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
-  
+    TEAValues = np.array(TEAValues.iloc[:,CropType]) 
+    nonsoil = np.array(nonsoil.iloc[:,CropType]) 
     lis_fpath = f"{item}.lis"
     
     #reading .lis file, reading the data, separating and formatting variables
@@ -426,7 +388,18 @@ for item in folder_list:
     strmac2lis = pull_variable(strmac2lis_index, lis_results)
     strmac2lis = np.delete(strmac2lis,0)
     somtc = pull_variable(somtc_index, lis_results)
-        
+    return harvest, year_summary, methane, N2Oflux, NOflux, cgrain, crmvst, strmac2harv, fertapp, lis_results, volpac, strmac2lis, somtc, CH4_ox, CH4_prod, TEAValues, nonsoil
+    
+def DayCentRun():
+    DayCent(dc_path, sch_file, run_id, outvars, dclist_path, extension)
+    #runs daycent
+    global  harvest, year_summary, methane, N2Oflux, NOflux, cgrain, crmvst, strmac2harv, fertapp, lis_results, volpac, strmac2lis, somtc, CH4_ox, CH4_prod, TEAValues, nonsoil
+    harvest, year_summary, methane, N2Oflux, NOflux, cgrain, crmvst, strmac2harv, fertapp, lis_results, volpac, strmac2lis, somtc, CH4_ox, CH4_prod, TEAValues, nonsoil = setupvar() 
+    #formatting methane variables
+    CH4_oxyear = np.array(daystoyears(CH4_ox)) # g CO2e /m^2 year
+    CH4_prodyear = np.array(daystoyears(CH4_prod)) # g CO2e /m^2 year
+    CH4 = totalCH4(CH4_oxyear, CH4_prodyear)
+    
     #finding N2O from indirect sources and CO2 flux
     N2Oindirect = N2Oindirectcalc() # g N2O-N/m^2 to g CO2e /m^2 d
     CO2flux = CO2fluxcalc() #gC/m^2 to g CO2e/m^2
@@ -436,6 +409,7 @@ for item in folder_list:
     cyield = cropyield(crmvst,cgrain)
     
     #defining cornstover pieces
+    global cornstover, cornstover_tea, ethanol
     cornstover = cs.cornstover
     cornstover_tea = cs.cornstover_tea
     ethanol = cs.ethanol
@@ -444,6 +418,7 @@ for item in folder_list:
     MESP, dryton_acre, dollarperton, replaceharv, MESPdf = MESPPrices(cyield,np.array(year_summary.iloc[:,0]))
     
     #defining ratio and kg CO2eq / kg cornstover variables for each chemical
+    global ratio, monetaryratio
     ratio = ethanol.F_mass / (cornstover.F_mass - cornstover.imass['Water'])
     CO2eq_per_kg_cornstover_from_N2O = percornstover(N2Oflux, dryton_acre)
     CO2eq_per_kg_cornstover_from_N2O_indirect = percornstover(N2Oindirect, dryton_acre)
@@ -466,7 +441,9 @@ for item in folder_list:
               'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
     inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
     emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
+    return N2Oindirect, CO2flux, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon
     
+def BioSTEAMRun():
     os.chdir(f'{target_path}/BioSTEAMconnectors-main')
     # Additional codes added by Yalin for LCA accounting
     from _lca_cornstover import GWP_CF_stream, GWP_CFs
@@ -509,6 +486,46 @@ for item in folder_list:
     # in GREET 2020
     # GREET (https://greet.es.anl.gov/) is a model developed by ANL (Argonne National Lab)
     # for energy and emission accounting of fuels
+    return GWPCornstover
+    
+#defines paths to workspace
+target_path = input("Path to workspace:") # Yalin: Maybe add ": " at the end (i.e., "Path to workspace: ")
+dc_path = "DayCent_CABBI.exe"
+#sch_file = input("Input schedule file name (w/o .sch):")
+dclist_path = "list100_DayCent-CABBI.exe"
+extend = input("Are you extending a file? y or n:")
+if extend == 'y':
+    extension = input('File running DayCent extension with. Do not include .bin')
+else:
+    extension = ""
+
+CropType = input('What crop? 1: cornstover, 2: sugarcane, 3: sorghum, 4: other:')
+CropType = int(CropType)
+folder_list = []
+first = input('First folder name:')
+folder_list.append(first)
+addfolder = input('Would you like to add another folder? y or n:')
+while addfolder == 'y':
+    new = input('New folder name:')
+    folder_list.append(new)
+    addfolder = input('Would you like to add another folder? y or n:')
+
+reset()
+
+for item in folder_list:
+    folder_path = f'{target_path}/{item}'
+    sch_file = item
+    run_id = sch_file[:]
+    outvars = "outvars.txt"
+    copy = ['crop.100','cult.100','fert.100','fix.100','harv.100','irri.100','site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth',
+            f'{item}.sch']
+    
+    for file in copy:
+        shutil.copy(f"{folder_path}/{file}",target_path)
+    #start DayCent
+    N2Oindirect, CO2flux, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon = DayCentRun()
+    #start BioSTEAM
+    GWPCornstover = BioSTEAMRun()
     output()
     outputs = ['MESPdf.csv','FeedstockEmissions.csv','AllocationEmissions.csv','GWPCornstover.csv']
     for file in outputs:
