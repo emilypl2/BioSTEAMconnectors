@@ -20,6 +20,9 @@ matplotlib.style.use('classic')
 import thermosteam as tmo
 from biorefineries import cornstover as cs
 
+N2OCF = 265
+BiogenicCH4CF = 28
+
 def DayCent (dc_path, sch_file, run_id, outvars, dclist_path="", extension =""):
     '''
     Runs DayCent for a specific schedule file
@@ -117,8 +120,6 @@ def read_full_out(out_fpath, head_skip, tail_skip):
         del mylist[-1]
 
     # convert each list entry float format if possible, or zero in case of small numbers in scientific notation
-    # Yalin: maybe considering using `numpy.array`?
-    # `array` is the way to go with larger amount of data
     # What str would be in the input?
     # numpy can automatically convert scientific expressions to float
     # import numpy as np
@@ -128,9 +129,6 @@ def read_full_out(out_fpath, head_skip, tail_skip):
             mylist[k][l] = auto_type(mylist[k][l])
     return mylist
 
-# Yalin: I feel like we can use array indexing to do it more efficiently
-# (i.e., isntead of using loops),
-# but need to check out the inputs to be sure
 def pull_variable(index, results):
     #seperates the desired vairables from the results
     #index is the the index of the variable you are trying to pull
@@ -149,24 +147,24 @@ def pull_variable(index, results):
 def N2Oindirectcalc():
     # g N2O-N/m^2 converted to N2O then CO2e
     #finds indirect N2O emissions
-    N2Oindirect = (((0.025*(strmac2lis - strmac2harv) + (0.01*(NOflux + volpac)))/28)*44)*298 #CO2/m^2
+    N2Oindirect = (((0.025*(strmac2lis - strmac2harv) + (0.01*(NOflux + volpac)))/28)*44)*N2OCF #CO2/m^2
     return N2Oindirect
 
 
-def CO2fluxcalc():
+def SOCcalc():
     #finds each CO2flux per year and adds them for a total CO2 flux
     #gC/m^2 converted to gCO2/m^2
     count_up = 0
-    CO2flux = np.empty((0,0))
+    SOC = np.empty((0,0))
     for index in range(len(somtc)-1):
-        CO2flux = np.append(CO2flux,somtc[count_up] - somtc[count_up+1])
+        SOC = np.append(SOC,somtc[count_up] - somtc[count_up+1])
         count_up += 1
-    CO2flux = (CO2flux/12)*44
-    return CO2flux
+    SOC = (SOC/12)*44
+    return SOC
 
 def convertCH4(var):
     #converts gC/m^2 to gCH4/m^2 gCO2eq/m^2
-    CtoCH4toCO2eq = ((var/12) * (12.011 + 4*(1.008)))*25
+    CtoCH4toCO2eq = ((var/12) * (12.011 + 4*(1.008)))*BiogenicCH4CF
     return CtoCH4toCO2eq
 
 # Yalin: I didn't understand the function, what is 2000 doing?
@@ -192,10 +190,6 @@ def daystoyears(var):
          count_up += 1
     return years
 
-# Yalin: I suggest we make .425 an optional argument
-# def cropyield(crmvst, cgrain, C_frac=0.425):
-# ...
-# cropyield = cgrain[:] / C_frac
 def cropyield(crmvst,cgrain, C_frac = 0.425):
     #determines if crop is a grain or grass
     #what variable has yield of crop
@@ -233,7 +227,7 @@ def nonsoilcalc(fertapp):
     emissions = chemop + fertapp*nonsoil[3] + (nonsoil[4]*(nonsoil[5]/10000)*nonsoil[2])
     return emissions
 
-def MESPPrices(var,time):
+def MESPPrices(var,time, BioPrice = 1.4):
     '''
     converts yield (g corn/m^2 harvest) to prices ($/dryton cornstover)
     then finds the MESP ($/gal)
@@ -265,6 +259,7 @@ def MESPPrices(var,time):
     TotalCost = (TEAValues[6]/drytonacre) + (TEAValues[17]/drytonacre) + TEAValues[19] + TEAValues[21] + TEAValues[23] + TEAValues[8]
     Feedratio = ((TEAValues[6]/drytonacre) + TEAValues[8])/TotalCost 
     Logratio = ((TEAValues[17]/drytonacre) + TEAValues[19] + TEAValues[21] + TEAValues[23])/TotalCost 
+    #not currently considering price of lime -> need to 
     price = np.empty((0,0))
     Feed = np.empty((0,0))
     Log = np.empty((0,0))
@@ -274,9 +269,9 @@ def MESPPrices(var,time):
         MESP = cornstover_tea.solve_price(ethanol)
         MESP = MESP*cs.ethanol_density_kggal
         price = np.append(price, MESP)
-        Feed = np.append(Feed, (MESP - 1.4)*Feedratio[i])
-        Log = np.append(Log, (MESP - 1.4)*Logratio[i])
-        Bio = np.append(Bio, [1.4])
+        Feed = np.append(Feed, (MESP - BioPrice)*Feedratio[i])
+        Log = np.append(Log, (MESP - BioPrice)*Logratio[i])
+        Bio = np.append(Bio, [BioPrice])
     outputs['MESP [$/gal]'] = price
     outputs['Feedstock [$/gal'] = Feed
     outputs['Logistics & Preprocessing [$/gal]'] = Log
@@ -313,10 +308,10 @@ def add2(source1, source2):
     total = source1 + source2
     return total
 
-def valueratio(cropyield, dollarperton): 
-    cornprice = 241.6654953 #$ per dryton
+def valueratio(cropyield, dollarperton, CropPrice = 241.6654953): 
+    #cornprice = 241.6654953 #$ per dryton
     cornstovervalue = (cropyield*.5)*dollarperton
-    cornvalue = cropyield*cornprice
+    cornvalue = cropyield*CropPrice
     monratio = (cornstovervalue/(cornstovervalue + cornvalue))
     return monratio
     
@@ -347,6 +342,13 @@ def output():
 def reset(): 
     for item in folder_list:
         sch_file = item
+        totalfiles = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv',f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv',
+         'potcrp.csv','potfor.csv','potgt.csv','resp.csv',f'{sch_file}.bin','summary.csv','year_summary.csv','crop.100','cult.100','fert.100','fix.100','harv.100','irri.100',
+         'site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth', f'{item}.sch','TEAValues.csv','non-soil.csv']
+        for file in totalfiles:
+            indicate = os.path.isfile(f'{target_path}/{file}')  
+            if indicate == True:
+                os.remove(f'{target_path}/{file}')
         FileList = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv', f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv','potcrp.csv','potfor.csv','potgt.csv',
                 'resp.csv',f'{sch_file}.bin','summary.csv','year_summary.csv','bio.csv','soiln.csv','soiltavg.csv','soiltmax.csv','soiltmin.csv','stemp_dx.csv','vswc.csv','watrbal.csv','wfps.csv','wflux.csv',
                 'livec.csv','deadc.csv','soilc.csv','sycs.csv','tgmonth.csv','dN2lyr.csv','dN2Olyr.csv','dels.csv','dc_sip.csv','harvestgt.csv','cflows.csv','year_cflows.csv','daily.csv','psyn.csv']
@@ -354,6 +356,7 @@ def reset():
             indicate = os.path.isfile(f'{target_path}/{item}/{i}')  
             if indicate == True:
                 os.remove(f'{target_path}/{item}/{i}')
+                
 def setupvar():
     #from target path, takes methane.csv, year_summary.csv, and harvest.csv
     #to be used in the module
@@ -365,7 +368,7 @@ def setupvar():
     nonsoil = pd.read_csv('non-soil.csv')
     
     #from the dataframes, separating important variables
-    N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*298) #g N/m^2 y
+    N2Oflux = np.array(((year_summary.iloc[:,1])/28)*44*N2OCF) #g CO2eq/m^2 y
     NOflux = np.array(year_summary.iloc[:,2]) #g N/m^2 y
     cgrain = np.array(harvest.iloc[:,6])  #g C/m^2 harvest
     crmvst = np.array(harvest.iloc[:,10]) #g C/m^2 harvest
@@ -402,7 +405,7 @@ def DayCentRun():
     
     #finding N2O from indirect sources and CO2 flux
     N2Oindirect = N2Oindirectcalc() # g N2O-N/m^2 to g CO2e /m^2 d
-    CO2flux = CO2fluxcalc() #gC/m^2 to g CO2e/m^2
+    SOC = SOCcalc() #gC/m^2 to g CO2e/m^2
     nonsoil = nonsoilcalc(fertapp)
     
     #finding yield variable and converting to price/dryton and dryton/acre
@@ -423,25 +426,25 @@ def DayCentRun():
     CO2eq_per_kg_cornstover_from_N2O = percornstover(N2Oflux, dryton_acre)
     CO2eq_per_kg_cornstover_from_N2O_indirect = percornstover(N2Oindirect, dryton_acre)
     CO2eq_per_kg_cornstover_from_N2O_total = add2(CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect)
-    CO2eq_per_kg_cornstover_from_CO2 = percornstover(CO2flux, dryton_acre)
+    CO2eq_per_kg_cornstover_from_SOC = percornstover(SOC, dryton_acre)
     CO2eq_per_kg_cornstover_from_CH4_ox = percornstover(CH4_oxyear, dryton_acre)
-    CO2eq_per_kg_cornstover_from_CO2_total = add2(CO2eq_per_kg_cornstover_from_CO2,CO2eq_per_kg_cornstover_from_CH4_ox)
+    CO2eq_per_kg_cornstover_from_SOC_total = add2(CO2eq_per_kg_cornstover_from_SOC,CO2eq_per_kg_cornstover_from_CH4_ox)
     CO2eq_per_kg_cornstover_from_CH4 = percornstover(CH4, dryton_acre)
     CO2eq_per_kg_cornstover_from_nonsoil = percornstover(nonsoil, dryton_acre)
     names1 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','N2Oflux (kg CO2 eq/kg feedstock)',
-              'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_CO2total (kg CO2 eq/gal ethanol)', 'CO2flux (kg CO2 eq/kg feedstock)',
+              'N2Oindirect (kg CO2 eq/kg feedstock)', 'GWP_SOCtotal (kg CO2 eq/gal ethanol)', 'SOC (kg CO2 eq/kg feedstock)',
               'CH4_ox (kg CO2 eq/kg feedstock)', 'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
-    CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_nonsoil, add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_CO2_total)))
+    CO2eq_per_kg_cornstover_total = add2(CO2eq_per_kg_cornstover_from_nonsoil, add2(CO2eq_per_kg_cornstover_from_N2O_total, add2(CO2eq_per_kg_cornstover_from_CH4,CO2eq_per_kg_cornstover_from_SOC_total)))
     inputsfeed = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_N2O, CO2eq_per_kg_cornstover_from_N2O_indirect,
-                  CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CO2, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
+                  CO2eq_per_kg_cornstover_from_SOC_total, CO2eq_per_kg_cornstover_from_SOC, CO2eq_per_kg_cornstover_from_CH4_ox, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
     #generate emissions dataframe
     emissionsdffeedstock = calc_emissions(inputsfeed,year_summary.iloc[:,0],names1)
     monetaryratio = valueratio(cyield, dollarperton)
     names2 = ['GWP_Total (kg CO2 eq/gal ethanol)','GWP_N2Ototal (kg CO2 eq/gal ethanol)','GWP_CO2total (kg CO2 eq/gal ethanol)',
               'GWP_CH4 (kg CO2 eq/gal ethanol)', 'GWP_nonsoil (kg CO2 eq/gal ethanol)']
-    inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_CO2_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
+    inputsmon = (CO2eq_per_kg_cornstover_total, CO2eq_per_kg_cornstover_from_N2O_total, CO2eq_per_kg_cornstover_from_SOC_total, CO2eq_per_kg_cornstover_from_CH4, CO2eq_per_kg_cornstover_from_nonsoil)
     emissionsdfmon = calc_emissions_mon(inputsmon,year_summary.iloc[:,0], names2)
-    return N2Oindirect, CO2flux, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon
+    return N2Oindirect, SOC, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon
     
 def BioSTEAMRun():
     os.chdir(f'{target_path}/BioSTEAMconnectors-main')
@@ -509,6 +512,7 @@ while addfolder == 'y':
     new = input('New folder name:')
     folder_list.append(new)
     addfolder = input('Would you like to add another folder? y or n:')
+    
 
 reset()
 
@@ -518,21 +522,20 @@ for item in folder_list:
     run_id = sch_file[:]
     outvars = "outvars.txt"
     copy = ['crop.100','cult.100','fert.100','fix.100','harv.100','irri.100','site.100','tree.100','trem.100','outfiles.in','sitepar.in','soils.in','outvars.txt','weather.wth',
-            f'{item}.sch']
-    
+            f'{item}.sch','TEAValues.csv','non-soil.csv']
     for file in copy:
         shutil.copy(f"{folder_path}/{file}",target_path)
     #start DayCent
-    N2Oindirect, CO2flux, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon = DayCentRun()
+    N2Oindirect, SOC, nonsoil, CH4_oxyear, CH4_prodyear, CH4, cyield, cornstover, cornstover_tea, ethanol, MESP, dryton_acre, dollarperton, replaceharv, MESPdf, ratio, emissionsdffeedstock, monetaryratio, emissionsdfmon = DayCentRun()
     #start BioSTEAM
     GWPCornstover = BioSTEAMRun()
     output()
     outputs = ['MESPdf.csv','FeedstockEmissions.csv','AllocationEmissions.csv','GWPCornstover.csv']
     for file in outputs:
         shutil.copy(f"{target_path}/{file}", folder_path)
-    files = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv',f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv',
+    totalfiles = ['AllocationEmissions.csv','FeedstockEmissions.csv','MESPdf.csv','GWPCornstover.csv',f'{sch_file}.lis','co2.csv','harvest.csv','methane.csv','nflux.csv',
          'potcrp.csv','potfor.csv','potgt.csv','resp.csv',f'{sch_file}.bin','summary.csv','year_summary.csv']
-    for file in files:
+    for file in totalfiles:
         shutil.copy(f"{target_path}/{file}", folder_path)
         os.remove(f"{target_path}/{file}")
     for file in copy:
