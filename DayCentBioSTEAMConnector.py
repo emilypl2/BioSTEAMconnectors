@@ -165,8 +165,8 @@ def update_results(user_data, folder):
     # Soil organic carbon and CO2 from oxidized CH4,
     # gC/m^2 to g CO2e/m^2
     somtc = lis_results.somtc
-    SOC = (somtc[1:].reset_index(drop=True)-somtc[:-1].values)*CtoCO2
-    results.loc[:,16] = SOC * multiplier
+    SOC = -(somtc[1:].reset_index(drop=True)-somtc[:-1].values)*CtoCO2
+    results.loc[:,16] = SOC * 10000/1000 # gCO2/m2/yr to kgCO2/ha/yr
 
     # Direct N2O
     N2Odirect = year_summary.N2Oflux*NtoN2O*CFs['N2O'] # gN/m2/yr -> g CO2eq/m^2 y
