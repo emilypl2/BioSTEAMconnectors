@@ -153,7 +153,9 @@ def update_col(df):
 #!!! Use the column name, not numbers
 def update_results(inputs, folder):
     '''Read, organize, and save DayCent results.'''
+    header = inputs.columns.levels[1]
     outputs = inputs.copy()
+    outputs.columns = header
 
     # Results from DayCent
     harvest = update_col(pd.read_csv('harvest.csv'))
@@ -163,18 +165,18 @@ def update_results(inputs, folder):
 
     # Find crop yield, harvested grass/grain, g C/m^2 harvest
     cropyield = convert_yield(harvest.crmvst, harvest.cgrain) #bu/ac
-    outputs.loc[:,6] = cropyield
+    outputs.Yield = cropyield
     multiplier = m2_per_acre / cropyield # from per acre to per bu
 
     # Soil organic carbon and CO2 from oxidized CH4,
     # gC/m^2 to g CO2e/m^2
     somtc = lis_results.somtc
-    SOC = -(somtc[1:].reset_index(drop=True)-somtc[:-1].values)*CtoCO2
-    outputs.loc[:,16] = SOC * 10000/1000 # gCO2/m2/yr to kgCO2/ha/yr
+    SOC = -(somtc[1:].reset_index(drop=True)-somtc[:-1].values)
+    outputs.SOC = SOC * 10000/1000 # gC/m2/yr to kgC/ha/yr
 
     # Direct N2O
     N2Odirect = year_summary.N2Oflux*NtoN2O*CFs['N2O'] # gN/m2/yr -> g CO2eq/m^2 y
-    outputs.loc[:,17] = N2Odirect * multiplier
+    outputs.N2O_FLUX = N2Odirect * multiplier
 
     # Indirect N2O from leached and volatilized N, g N2O-N/m^2 to g CO2e /m^2 d
     #!!! Go with Jeff's suggestion for now, but need to double-check
@@ -182,7 +184,7 @@ def update_results(inputs, folder):
     NO = EFs['NO']*year_summary.NOflux
     vol = EFs['vol']*lis_results.volpac[1:].reset_index(drop=True)
     N2Oindirect = (leached+NO+vol)*NtoN2O*CFs['N2O']
-    outputs.loc[:,18] = N2Oindirect * multiplier
+    outputs.N_leaching = N2Oindirect * multiplier
 
     #!!! Need to add in this part
     Napp = harvest.fertappN #applied N fertilizer, g N/m2
@@ -196,8 +198,9 @@ def update_results(inputs, folder):
     CH4_oxyear = np.array([methane[methane.year==i].CH4_oxid.sum() for i in years])
     # Get the CO2-eq CH4, note that the oxidized CH4 does not need to multiply by the methane CF
     CH4flux = (CH4_prodyear-CH4_oxyear)*CtoCH4*CFs['BioCH4'] + CH4_oxyear*CtoCO2
-    outputs.loc[:,19] = CH4flux * multiplier
+    outputs.CH4_FLUX = CH4flux * multiplier
 
+    outputs.columns = inputs.columns
     return outputs
 
 
