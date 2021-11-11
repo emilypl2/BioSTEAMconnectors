@@ -302,6 +302,6 @@ def run_DayCent_connector():
         folder_path = join(workspace_path, folder)
         data_path = join(folder, 'user_data.xlsx')
         run_FDCIC(data_path=data_path, fdcic_path=new_fdcic_path)
-        print(f'\nFinished calculating carbon intensity for {folder}!')
+        print(f'\nFinished calculating carbon intensity for {folder}')
 
-    print('\nAll run complete!')
+    print('\nAll runs completed!')
