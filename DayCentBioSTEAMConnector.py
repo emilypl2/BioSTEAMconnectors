@@ -102,9 +102,9 @@ def read_lis(lis_path, head_skip, tail_skip):
     df = pd.DataFrame(data, columns=header)
     return update_col(df)
 
-def crop_type():
+def crop_type(user_data):
     #!!! I don't know why this is indexing as the 0 and not the 1 column
-    #Yield indexes as 4 so then CROP_type should index as 1
+    #Yield indexes as 4 so then CROP_type should index as 1      
     C_frac = np.empty((0,0))
     for i in range(len(user_data.iloc[:,0])):
         crop = user_data.iloc[i,0]
@@ -119,7 +119,7 @@ def crop_type():
     
 #!!! This needs redo, get C_frac based on the type of the crop from the processed_data spreadsheet
 #default value of 0.429 is for corn
-def convert_yield(crmvst, cgrain):
+def convert_yield(crmvst, cgrain, user_data):
     #determines if crop is a grain or grass
     #what variable has yield of crop
     crmvstsum = 0
@@ -129,7 +129,7 @@ def convert_yield(crmvst, cgrain):
     for i in range(len(cgrain)):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
-        C_frac = crop_type()
+        C_frac = crop_type(user_data)
         cropyield = (cgrain[:])*(1-.07) # 7% storage loss
         cropyield = cropyield*C_frac #gC/m^2 to bu/ac
     else:
@@ -175,7 +175,8 @@ def update_results(user_data, folder):
     methane = update_col(pd.read_csv('methane.csv'))
 
     # Find crop yield, harvested grass/grain, g C/m^2 harvest
-    cropyield = convert_yield(harvest.crmvst, harvest.cgrain) #bu/ac
+    cropyield = convert_yield(harvest.crmvst, harvest.cgrain, user_data) #bu/ac
+
     results.loc[:,4] = cropyield
     multiplier = m2_per_acre / cropyield # from per acre to per bu
 
