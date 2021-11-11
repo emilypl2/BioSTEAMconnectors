@@ -35,6 +35,7 @@ CtoCH4 = 16/12
 NtoN2O = 44/28
 PtoP2O5 = 141.948/30.974
 m2_per_acre = 4046.86
+gtolb = 1/454
 
 # Name of the executive files
 dc_path = 'DayCent_CABBI.exe' # DayCent
@@ -198,9 +199,9 @@ def update_results(user_data, folder):
 
     #!!! Need to add in this part
     Napp = harvest.fertappN #applied N fertilizer, g N/m2
-    results.loc[:,7] = Napp * m2_per_acre
+    results.loc[:,7] = Napp * m2_per_acre * gtolb
     Papp = harvest.fertappP #applied P fertilizer, g P/m2
-    results.loc[:,10] = Papp * PtoP2O5 * m2_per_acre
+    results.loc[:,10] = Papp * PtoP2O5 * m2_per_acre * gtolb
 
     #formatting methane variables
     methane['year'] = np.floor(methane.time)
