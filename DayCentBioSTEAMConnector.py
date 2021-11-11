@@ -3,9 +3,9 @@
 @author: Emily Lin; Yalin Li
 
 TODO/Notes:
-    Add in fertilizers
-    Crop type and fertilizer
-    No need for .c and .f files as long as .exe files are there
+    Add in fertilizers - done
+    Crop type and fertilizer - done
+    No need for .c and .f files as long as .exe files are there - done
     Connect not necessarily needs to be in the same folder as the workspace folder
     Discover the individual sites?
     Let it automatically find schedule and extension files
@@ -33,6 +33,7 @@ EFs = {
 CtoCO2 = 44/12
 CtoCH4 = 16/12
 NtoN2O = 44/28
+PtoP2O5 = 141.948/30.974
 m2_per_acre = 4046.86
 
 # Name of the executive files
@@ -100,9 +101,24 @@ def read_lis(lis_path, head_skip, tail_skip):
     df = pd.DataFrame(data, columns=header)
     return update_col(df)
 
-
+def crop_type():
+    #!!! I don't know why this is indexing as the 0 and not the 1 column
+    #Yield indexes as 4 so then CROP_type should index as 1
+    C_frac = np.empty((0,0))
+    for i in range(len(user_data.iloc[:,0])):
+        crop = user_data.iloc[i,0]
+        if crop == 'corn':
+            C_frac = np.append(C_frac, 0.429)
+        elif crop == 'soybean':
+            C_frac = np.append(C_frac, 0.3169)
+        else:
+            print('crop type not supported')
+            C_frac = np.append(C_frac, 0.429)
+    return C_frac
+    
 #!!! This needs redo, get C_frac based on the type of the crop from the processed_data spreadsheet
-def convert_yield(crmvst, cgrain, C_frac=0.425):
+#default value of 0.429 is for corn
+def convert_yield(crmvst, cgrain):
     #determines if crop is a grain or grass
     #what variable has yield of crop
     crmvstsum = 0
@@ -112,12 +128,12 @@ def convert_yield(crmvst, cgrain, C_frac=0.425):
     for i in range(len(cgrain)):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
-        cropyield = (cgrain[:] / C_frac)*(1-.07) # 7% storage loss
-        cropyield = cropyield*0.429 #gC/m^2 to bu/ac
+        C_frac = crop_type()
+        cropyield = (cgrain[:])*(1-.07) # 7% storage loss
+        cropyield = cropyield*C_frac #gC/m^2 to bu/ac
     else:
         cropyield = crmvst[:]
     return cropyield
-
 
 def cleanup_files(target_path, folders=()):
     '''Remove the copied files generated during run.'''
@@ -182,7 +198,9 @@ def update_results(user_data, folder):
 
     #!!! Need to add in this part
     Napp = harvest.fertappN #applied N fertilizer, g N/m2
+    results.loc[:,7] = Napp * m2_per_acre
     Papp = harvest.fertappP #applied P fertilizer, g P/m2
+    results.loc[:,10] = Papp * PtoP2O5 * m2_per_acre
 
     #formatting methane variables
     methane['year'] = np.floor(methane.time)
@@ -209,9 +227,6 @@ if extend == 'y':
     extension = input('Input file running DayCent extension with. Do not include .bin')
 else:
     extension = ''
-
-CropType = input('What crop? 1: cornstover, 2: sugarcane, 3: sorghum, 4: other: ')
-CropType = int(CropType)
 
 folders = []
 first = input('Folder name: ')
