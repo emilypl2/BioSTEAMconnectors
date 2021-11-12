@@ -3,9 +3,7 @@
 @author: Emily Lin; Yalin Li
 
 TODO/Notes:
-    Add in fertilizers - done
-    Crop type and fertilizer - done
-    No need for .c and .f files as long as .exe files are there - done
+    Include constants in the setting in the user_data spreadsheet
     Connect not necessarily needs to be in the same folder as the workspace folder
     Discover the individual sites?
     Let it automatically find schedule and extension files
@@ -17,25 +15,41 @@ TODO/Notes:
 # Settings that can be updated
 # =============================================================================
 
-# Used constants
+# Multiplier from gC/m2 to bu/ac
+C_frac = {
+    'corn': 0.429,
+    'soybean': 0.3169,
+    }
+
+# Mass conversion
+CtoCO2 = 44/12
+CtoCH4 = 16/12
+NtoN2O = 44/28
+PtoP2O5 = 142/31
+m2_per_acre = 4046.86
+gtolb = 1/454
+
+# Characterization factors
 CFs = {
        'N2O': 265,
        'BioCH4': 28,
        }
 
+# N emission factors
 EFs = {
        'leached': 0.025,
        'NO': 0.01,
        'vol': 0.01
        }
 
-# Mass conversion
-CtoCO2 = 44/12
-CtoCH4 = 16/12
-NtoN2O = 44/28
-PtoP2O5 = 141.948/30.974
-m2_per_acre = 4046.86
-gtolb = 1/454
+storage_loss = 0.07
+grains = ('corn', 'soybean', 'sugarcane', 'sorghum')
+grasses = ('miscanthus', 'switchgrass')
+
+fertilizers = {
+    'N': 'UAN', # UAN, ammonia, or urea
+    'P': 'MAP', # MAP, DAP
+    }
 
 # Name of the executive files
 dc_path = 'DayCent_CABBI.exe' # DayCent
@@ -106,45 +120,44 @@ def read_lis(lis_path, head_skip, tail_skip):
     df = pd.DataFrame(data, columns=header)
     return update_col(df)
 
-def crop_type(user_data):
-    #!!! I don't know why this is indexing as the 0 and not the 1 column
-    #Yield indexes as 4 so then CROP_type should index as 1      
-    C_frac = np.empty((0,0))
-    for i in range(len(user_data.CROP_type)):
-        
-        import pdb
-        pdb.set_trace()
-        
-        crop = user_data.CROP_type.values[i]
-        if crop == 'corn':
-            C_frac = np.append(C_frac, 0.429)
-        elif crop == 'soybean':
-            C_frac = np.append(C_frac, 0.3169)
-        else:
-            print('crop type not supported')
-            C_frac = np.append(C_frac, 0.429)
-    return C_frac
-    
-#!!! This needs redo, get C_frac based on the type of the crop from the processed_data spreadsheet
-#default value of 0.429 is for corn
-def convert_yield(crmvst, cgrain, user_data):
-    #determines if crop is a grain or grass
-    #what variable has yield of crop
-    crmvstsum = 0
-    cgrainsum = 0
-    for i in range(len(crmvst)):
-        crmvstsum += crmvst[i]
-    for i in range(len(cgrain)):
-        cgrainsum += cgrain[i]
-    if cgrainsum > 0:
-        import pdb
-        pdb.set_trace()
-        C_frac = crop_type(user_data)
-        cropyield = (cgrain[:])*(1-.07) # 7% storage loss
-        cropyield = cropyield*C_frac #gC/m^2 to bu/ac
-    else:
-        cropyield = crmvst[:]
-    return cropyield
+# def crop_type(user_data):
+#     #!!! I don't know why this is indexing as the 0 and not the 1 column
+#     #Yield indexes as 4 so then CROP_type should index as 1
+#     C_frac = np.empty((0,0))
+#     for i in range(len(user_data.CROP_type)):
+#         crop = user_data.CROP_type.values[i]
+#         if crop == 'corn':
+#             C_frac = np.append(C_frac, 0.429)
+#         elif crop == 'soybean':
+#             C_frac = np.append(C_frac, 0.3169)
+#         else:
+#             print('crop type not supported')
+#             C_frac = np.append(C_frac, 0.429)
+#     return C_frac
+
+# def convert_yield(crmvst, cgrain, crop_type):
+#     import pdb
+#     pdb.set_trace()
+#     #determines if crop is a grain or grass
+#     #what variable has yield of crop
+#     crmvstsum = 0
+#     cgrainsum = 0
+
+
+
+#     for i in range(len(crmvst)):
+#         crmvstsum += crmvst[i]
+#     for i in range(len(cgrain)):
+#         cgrainsum += cgrain[i]
+#     if cgrainsum > 0:
+#         import pdb
+#         pdb.set_trace()
+#         C_frac = crop_type(crop_type)
+#         cropyield = (cgrain[:])*(1-.07) # 7% storage loss
+#         cropyield = cropyield*C_frac #gC/m^2 to bu/ac
+#     else:
+#         cropyield = crmvst[:]
+#     return cropyield
 
 
 def cleanup_files(workspace_path, folders=()):
@@ -174,12 +187,10 @@ def update_col(df):
                             for i in df.columns})
     return df
 
-#!!! Use the column name, not numbers
+
 def update_results(inputs, folder):
     '''Read, organize, and save DayCent results.'''
-    import pdb
-    pdb.set_trace()
-    header = inputs.columns.levels[1]
+    header = [i[1] for i in inputs.columns]
     outputs = inputs.copy()
     outputs.columns = header
 
@@ -189,11 +200,17 @@ def update_results(inputs, folder):
     lis_results = read_lis(f'{folder}.lis', head_skip=2, tail_skip=1)
     methane = update_col(pd.read_csv('methane.csv'))
 
-    # Find crop yield, harvested grass/grain, g C/m^2 harvest
+    # Find crop yield in bu/ac
+    croptype = outputs.CROP_type
+    cfracs = np.asarray([C_frac[i] or 0.429 for i in croptype])
+    cyields = [harvest.cgrain[i] if croptype[i] in grains \
+               else harvest.crmvst[i] if croptype[i] in grasses \
+               else 0. \
+               for i in range(croptype.shape[0])]
+    outputs.Yield = cropyield = cfracs * cyields * (1-storage_loss)
 
-    cropyield = convert_yield(harvest.crmvst, harvest.cgrain, outputs) #bu/ac
-    outputs.Yield = cropyield
-    multiplier = m2_per_acre / cropyield # from per acre to per bu
+    # From per acre to per bu
+    multiplier = m2_per_acre / cropyield
 
     # Soil organic carbon and CO2 from oxidized CH4,
     # gC/m^2 to g CO2e/m^2
@@ -213,11 +230,11 @@ def update_results(inputs, folder):
     N2Oindirect = (leached+NO+vol)*NtoN2O*CFs['N2O']
     outputs.N_leaching = N2Oindirect * multiplier
 
-    #!!! Need to add in this part
-    Napp = harvest.fertappN #applied N fertilizer, g N/m2
-    outputs.UAN = Napp * m2_per_acre * gtolb
-    Papp = harvest.fertappP #applied P fertilizer, g P/m2
-    outputs.MAP = Papp * PtoP2O5 * m2_per_acre * gtolb
+    # Applied fertilizers
+    Napp = harvest.fertappN # g N/m2
+    outputs.loc[:, fertilizers['N']] = Napp * m2_per_acre * gtolb # g N/m2
+    Papp = harvest.fertappP # g P/m2
+    outputs.loc[:, fertilizers['P']] = Papp * PtoP2O5 * m2_per_acre * gtolb # g P2O5/m2
 
     #formatting methane variables
     methane['year'] = np.floor(methane.time)
@@ -303,9 +320,6 @@ def run_DayCent_connector():
         data_wb = pd.ExcelFile(data_path)
         inputs = pd.read_excel(data_wb, sheet_name='inputs',
                                header=[0,1,2], index_col=0)
-        import pdb
-        pdb.set_trace()
-        
         outputs = update_results(inputs, folder)
         data_wb.close()
 
