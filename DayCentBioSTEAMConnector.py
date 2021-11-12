@@ -106,8 +106,8 @@ def crop_type(user_data):
     #!!! I don't know why this is indexing as the 0 and not the 1 column
     #Yield indexes as 4 so then CROP_type should index as 1      
     C_frac = np.empty((0,0))
-    for i in range(len(user_data.iloc[:,0])):
-        crop = user_data.iloc[i,0]
+    for i in range(len(user_data.CROP_type)):
+        crop = user_data.CROP_type
         if crop == 'corn':
             C_frac = np.append(C_frac, 0.429)
         elif crop == 'soybean':
@@ -166,7 +166,9 @@ def update_col(df):
 #!!! Use the column name, not numbers
 def update_results(user_data, folder):
     '''Read, organize, and save DayCent results.'''
+    header = user_data.columns.levels[1]
     results = user_data.copy()
+    results.columns = header
 
     # Results from DayCent
     harvest = update_col(pd.read_csv('harvest.csv'))
@@ -175,20 +177,20 @@ def update_results(user_data, folder):
     methane = update_col(pd.read_csv('methane.csv'))
 
     # Find crop yield, harvested grass/grain, g C/m^2 harvest
-    cropyield = convert_yield(harvest.crmvst, harvest.cgrain, user_data) #bu/ac
+    cropyield = convert_yield(harvest.crmvst, harvest.cgrain, results) #bu/ac
 
-    results.loc[:,4] = cropyield
+    results.Yield = cropyield
     multiplier = m2_per_acre / cropyield # from per acre to per bu
 
     # Soil organic carbon and CO2 from oxidized CH4,
     # gC/m^2 to g CO2e/m^2
     somtc = lis_results.somtc
     SOC = -(somtc[1:].reset_index(drop=True)-somtc[:-1].values)*CtoCO2
-    results.loc[:,16] = SOC * 10000/1000 # gCO2/m2/yr to kgCO2/ha/yr
+    results.SOC = SOC * 10000/1000 # gCO2/m2/yr to kgCO2/ha/yr
 
     # Direct N2O
     N2Odirect = year_summary.N2Oflux*NtoN2O*CFs['N2O'] # gN/m2/yr -> g CO2eq/m^2 y
-    results.loc[:,17] = N2Odirect * multiplier
+    results.Direct_N2O = N2Odirect * multiplier
 
     # Indirect N2O from leached and volatilized N, g N2O-N/m^2 to g CO2e /m^2 d
     #!!! Go with Jeff's suggestion for now, but need to double-check
@@ -196,13 +198,13 @@ def update_results(user_data, folder):
     NO = EFs['NO']*year_summary.NOflux
     vol = EFs['vol']*lis_results.volpac[1:].reset_index(drop=True)
     N2Oindirect = (leached+NO+vol)*NtoN2O*CFs['N2O']
-    results.loc[:,18] = N2Oindirect * multiplier
+    results.Indirect_N2O = N2Oindirect * multiplier
 
     #!!! Need to add in this part
     Napp = harvest.fertappN #applied N fertilizer, g N/m2
-    results.loc[:,7] = Napp * m2_per_acre * gtolb
+    results.UAN = Napp * m2_per_acre * gtolb
     Papp = harvest.fertappP #applied P fertilizer, g P/m2
-    results.loc[:,10] = Papp * PtoP2O5 * m2_per_acre * gtolb
+    results.MAP = Papp * PtoP2O5 * m2_per_acre * gtolb
 
     #formatting methane variables
     methane['year'] = np.floor(methane.time)
@@ -212,7 +214,10 @@ def update_results(user_data, folder):
     CH4_oxyear = np.array([methane[methane.year==i].CH4_oxid.sum() for i in years])
     # Get the CO2-eq CH4, note that the oxidized CH4 does not need to multiply by the methane CF
     CH4flux = (CH4_prodyear-CH4_oxyear)*CtoCH4*CFs['BioCH4'] + CH4_oxyear*CtoCO2
-    results.loc[:,19] = CH4flux * multiplier
+    results.CH4_FLUX = CH4flux * multiplier
+    
+    results.columns=user_data.columns
+    
     return results
 
 
