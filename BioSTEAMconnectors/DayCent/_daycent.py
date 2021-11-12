@@ -3,9 +3,9 @@
 @author: Emily Lin; Yalin Li
 
 TODO/Notes:
-    Add in fertilizers
-    Crop type and fertilizer
-    No need for .c and .f files as long as .exe files are there
+    Add in fertilizers - done
+    Crop type and fertilizer - done
+    No need for .c and .f files as long as .exe files are there - done
     Connect not necessarily needs to be in the same folder as the workspace folder
     Discover the individual sites?
     Let it automatically find schedule and extension files
@@ -33,7 +33,9 @@ EFs = {
 CtoCO2 = 44/12
 CtoCH4 = 16/12
 NtoN2O = 44/28
+PtoP2O5 = 141.948/30.974
 m2_per_acre = 4046.86
+gtolb = 1/454
 
 # Name of the executive files
 dc_path = 'DayCent_CABBI.exe' # DayCent
@@ -104,9 +106,28 @@ def read_lis(lis_path, head_skip, tail_skip):
     df = pd.DataFrame(data, columns=header)
     return update_col(df)
 
-
-#!!! This needs redo, get C_frac based on the type of the crop from the user_data spreadsheet
-def convert_yield(crmvst, cgrain, C_frac=0.425):
+def crop_type(user_data):
+    #!!! I don't know why this is indexing as the 0 and not the 1 column
+    #Yield indexes as 4 so then CROP_type should index as 1      
+    C_frac = np.empty((0,0))
+    for i in range(len(user_data.CROP_type)):
+        
+        import pdb
+        pdb.set_trace()
+        
+        crop = user_data.CROP_type.values[i]
+        if crop == 'corn':
+            C_frac = np.append(C_frac, 0.429)
+        elif crop == 'soybean':
+            C_frac = np.append(C_frac, 0.3169)
+        else:
+            print('crop type not supported')
+            C_frac = np.append(C_frac, 0.429)
+    return C_frac
+    
+#!!! This needs redo, get C_frac based on the type of the crop from the processed_data spreadsheet
+#default value of 0.429 is for corn
+def convert_yield(crmvst, cgrain, user_data):
     #determines if crop is a grain or grass
     #what variable has yield of crop
     crmvstsum = 0
@@ -116,8 +137,11 @@ def convert_yield(crmvst, cgrain, C_frac=0.425):
     for i in range(len(cgrain)):
         cgrainsum += cgrain[i]
     if cgrainsum > 0:
-        cropyield = (cgrain[:] / C_frac)*(1-.07) # 7% storage loss
-        cropyield = cropyield*0.429 #gC/m^2 to bu/ac
+        import pdb
+        pdb.set_trace()
+        C_frac = crop_type(user_data)
+        cropyield = (cgrain[:])*(1-.07) # 7% storage loss
+        cropyield = cropyield*C_frac #gC/m^2 to bu/ac
     else:
         cropyield = crmvst[:]
     return cropyield
@@ -153,6 +177,8 @@ def update_col(df):
 #!!! Use the column name, not numbers
 def update_results(inputs, folder):
     '''Read, organize, and save DayCent results.'''
+    import pdb
+    pdb.set_trace()
     header = inputs.columns.levels[1]
     outputs = inputs.copy()
     outputs.columns = header
@@ -164,7 +190,8 @@ def update_results(inputs, folder):
     methane = update_col(pd.read_csv('methane.csv'))
 
     # Find crop yield, harvested grass/grain, g C/m^2 harvest
-    cropyield = convert_yield(harvest.crmvst, harvest.cgrain) #bu/ac
+
+    cropyield = convert_yield(harvest.crmvst, harvest.cgrain, outputs) #bu/ac
     outputs.Yield = cropyield
     multiplier = m2_per_acre / cropyield # from per acre to per bu
 
@@ -188,7 +215,9 @@ def update_results(inputs, folder):
 
     #!!! Need to add in this part
     Napp = harvest.fertappN #applied N fertilizer, g N/m2
+    outputs.UAN = Napp * m2_per_acre * gtolb
     Papp = harvest.fertappP #applied P fertilizer, g P/m2
+    outputs.MAP = Papp * PtoP2O5 * m2_per_acre * gtolb
 
     #formatting methane variables
     methane['year'] = np.floor(methane.time)
@@ -219,9 +248,6 @@ def run_DayCent_connector():
                           ' Do not include the .bin extension')
     else:
         extension = ''
-
-    CropType = input('What crop? 1: cornstover, 2: sugarcane, 3: sorghum, 4: other: ')
-    CropType = int(CropType)
 
     folders = []
     first = input('Folder name: ')
@@ -277,6 +303,9 @@ def run_DayCent_connector():
         data_wb = pd.ExcelFile(data_path)
         inputs = pd.read_excel(data_wb, sheet_name='inputs',
                                header=[0,1,2], index_col=0)
+        import pdb
+        pdb.set_trace()
+        
         outputs = update_results(inputs, folder)
         data_wb.close()
 
