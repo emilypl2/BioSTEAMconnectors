@@ -120,45 +120,6 @@ def read_lis(lis_path, head_skip, tail_skip):
     df = pd.DataFrame(data, columns=header)
     return update_col(df)
 
-# def crop_type(user_data):
-#     #!!! I don't know why this is indexing as the 0 and not the 1 column
-#     #Yield indexes as 4 so then CROP_type should index as 1
-#     C_frac = np.empty((0,0))
-#     for i in range(len(user_data.CROP_type)):
-#         crop = user_data.CROP_type.values[i]
-#         if crop == 'corn':
-#             C_frac = np.append(C_frac, 0.429)
-#         elif crop == 'soybean':
-#             C_frac = np.append(C_frac, 0.3169)
-#         else:
-#             print('crop type not supported')
-#             C_frac = np.append(C_frac, 0.429)
-#     return C_frac
-
-# def convert_yield(crmvst, cgrain, crop_type):
-#     import pdb
-#     pdb.set_trace()
-#     #determines if crop is a grain or grass
-#     #what variable has yield of crop
-#     crmvstsum = 0
-#     cgrainsum = 0
-
-
-
-#     for i in range(len(crmvst)):
-#         crmvstsum += crmvst[i]
-#     for i in range(len(cgrain)):
-#         cgrainsum += cgrain[i]
-#     if cgrainsum > 0:
-#         import pdb
-#         pdb.set_trace()
-#         C_frac = crop_type(crop_type)
-#         cropyield = (cgrain[:])*(1-.07) # 7% storage loss
-#         cropyield = cropyield*C_frac #gC/m^2 to bu/ac
-#     else:
-#         cropyield = crmvst[:]
-#     return cropyield
-
 
 def cleanup_files(workspace_path, folders=()):
     '''Remove the copied files generated during run.'''
@@ -319,7 +280,7 @@ def run_DayCent_connector():
         data_path = join(workspace_path, 'user_data.xlsx')
         data_wb = pd.ExcelFile(data_path)
         inputs = pd.read_excel(data_wb, sheet_name='inputs',
-                               header=[0,1,2], index_col=0)
+                               header=[0,1,2], index_col=0).reset_index(drop=True)
         outputs = update_results(inputs, folder)
         data_wb.close()
 
