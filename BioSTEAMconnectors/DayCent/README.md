@@ -8,11 +8,7 @@ There are four main files used to run BioSTEAMconnectors. *`DaycentRUNME.py`* im
 
 **![](https://lh4.googleusercontent.com/ChSsCIpPgkJb72tequl8rRpFmoV2LzV9QKIIP1xn0yiCikmYaw8S8WYfhq634cy-UndAx6G_efCislhwFs90VSesPv0xcdybMaIEPS3oHm-CCf0AKf9fUwFODFlvhVMcUyPd4K94)**
 
-**
-
 Figure 1. DayCent configuration
-
-**
 
 
 
@@ -28,11 +24,9 @@ The module workspace must be configured in order to run properly.
 
 **![](https://lh3.googleusercontent.com/OgO2m97_P1BozN6PwXUBEKtEghxQZsW2rTNDpYho3RFNRVGDDXBaOzK46RA_LM0buK814TxdFqRL0mhfAeRXJl1XjC76p0JUI1i6TBsrjZg9oOkpjeiYUoeBa-c7xNpIL7inTzEJ)**
 
-**
-
 Figure 2. Organization of workspace
 
-**
+
 
 The CABBI version of DayCent can be downloaded from Github at https://github.com/cabbi-bio/DayCent-CABBI by clicking the `code` button and downloading the *`.ZIP`* file. Once the GitHub file is downloaded, create a workspace folder. For this example, the workspace folder will be called `FakeCities` and will be located in my downloads folder. 
 
@@ -54,11 +48,7 @@ There are three columns that must be updated in the *`user_data.xlsx`* file. Fir
 
 **![](https://lh5.googleusercontent.com/dTa1-j1SdXgkSp_LShBhxmyGcodkTdQvndDBXA5g5B1CekuMPAtyT-1ij-nyexW_D4_ezTos_ydfXrS-ANNRcRLgRS-CIXqQIUIsENhjbJVSIPF1QTNM2OsJpnK7Cv8tHFIqyQ6Z)**
 
-**
-
 Figure 3. Example *`user_data.xlsx`* input
-
-**
 
 
 
@@ -94,10 +84,6 @@ All runs completed!
 
 
 
-## BioSTEAMConnectors Outputs
+## ## BioSTEAMConnectors Outputs
 
 The results of the module can be found in the file *`<site name>.xlsm`*. The results from DayCent can be found on the left side of the divider in columns H through U. The macro then calculates the emissions in columns W through AE. These emissions are in GHG per bu and GHG per MJ, then broken down into emissions due to energy, nitrogen fertilizer, N2O, CO2 and CH4, SOC, and other chemicals.
-
-
-
-
