@@ -10,13 +10,9 @@ There are four main files used to run BioSTEAMconnectors. *`DaycentRUNME.py`* im
 
 Figure 1. DayCent configuration
 
-
-
 ## Supported Versions and Devices
 
 DayCent can only be run by Windows devices, causing DayCent and this module to be inaccessible to Apple computers. This module will not produce outputs if run on Apple devices.
-
-
 
 ## Configuration of Workspace
 
@@ -25,8 +21,6 @@ The module workspace must be configured in order to run properly.
 **![](https://lh3.googleusercontent.com/OgO2m97_P1BozN6PwXUBEKtEghxQZsW2rTNDpYho3RFNRVGDDXBaOzK46RA_LM0buK814TxdFqRL0mhfAeRXJl1XjC76p0JUI1i6TBsrjZg9oOkpjeiYUoeBa-c7xNpIL7inTzEJ)**
 
 Figure 2. Organization of workspace
-
-
 
 The CABBI version of DayCent can be downloaded from Github at https://github.com/cabbi-bio/DayCent-CABBI by clicking the `code` button and downloading the *`.ZIP`* file. Once the GitHub file is downloaded, create a workspace folder. For this example, the workspace folder will be called `FakeCities` and will be located in my downloads folder. 
 
@@ -40,8 +34,6 @@ Create a folder for each site. The names of the example sites on the diagram are
 
 Check that you have all of the files necessary in your site folders and that DayCent and list100 are visible in your workspace.
 
-
-
 ## Formatting User_data.xlsx
 
 There are three columns that must be updated in the *`user_data.xlsx`* file. First, the `CROP_type` column (E) should represent the type of crop that is going to be modeled. The example uses a yearly rotation of corn and soybean so the *`user_data.xlsx`* shows this. The `tillage_intensity` (F) can then be set. The options are `CT` for conventional tillage, `NT` for no-tillage, and `RT` for reduced tillage. The final column to be updated is `cover_crop` (G) where the options are `R` for ryegrass, `H` for hairy vetch, `RH` for both ryegrass and hairy vetch. Complete the inputs for the three columns equal to the number of years to be modeled. If there are 21 years of data, the *`user_data.xlsx`* columns for `CROP_type`, `tillage_intensity`, and `cover_crop` should be filled through year 21.
@@ -49,8 +41,6 @@ There are three columns that must be updated in the *`user_data.xlsx`* file. Fir
 **![](https://lh5.googleusercontent.com/dTa1-j1SdXgkSp_LShBhxmyGcodkTdQvndDBXA5g5B1CekuMPAtyT-1ij-nyexW_D4_ezTos_ydfXrS-ANNRcRLgRS-CIXqQIUIsENhjbJVSIPF1QTNM2OsJpnK7Cv8tHFIqyQ6Z)**
 
 Figure 3. Example *`user_data.xlsx`* input
-
-
 
 ## Running BioSTEAMConnectors
 
@@ -82,8 +72,6 @@ Finished calculating carbon intensity for Hogwarts
 All runs completed!
 ```
 
-
-
-## ## BioSTEAMConnectors Outputs
+## BioSTEAMConnectors Outputs
 
 The results of the module can be found in the file *`<site name>.xlsm`*. The results from DayCent can be found on the left side of the divider in columns H through U. The macro then calculates the emissions in columns W through AE. These emissions are in GHG per bu and GHG per MJ, then broken down into emissions due to energy, nitrogen fertilizer, N2O, CO2 and CH4, SOC, and other chemicals.
