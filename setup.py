@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='biosteamconnectors',
-    packages=['biosteamconnectors'],
-    version='0.0.2',
+    packages=['BioSTEAMconnectors'],
+    version='0.0.3',
     license='UIUC',
     author='Emily Lin',
     author_email='Emilypl2@illinois.edu',
@@ -18,8 +18,6 @@ setup(
                       'pandas>=1.3.2', 'numpy', 'xlwings'],
     package_data=
         {'BioSTEAMconnectors': [
-                    '*',
-                    'DayCent',
                     'DayCent/*',
                     ]},
     platforms=['Windows', 'Linux'],
