@@ -3,9 +3,9 @@ from setuptools import setup
 setup(
     name='biosteamconnectors',
     packages=['biosteamconnectors'],
-    version='0.0.1',
+    version='0.0.2',
     license='UIUC',
-    author=['Emily Lin', 'Yalin Li'],
+    author='Emily Lin',
     author_email='Emilypl2@illinois.edu',
     description='Automates DayCent and FDCIC calculator to find feedstock emissions',
     long_description=open('README.rst', encoding='utf-8').read(),
@@ -18,6 +18,8 @@ setup(
                       'pandas>=1.3.2', 'numpy', 'xlwings'],
     package_data=
         {'BioSTEAMconnectors': [
+                    '*',
+                    'DayCent',
                     'DayCent/*',
                     ]},
     platforms=['Windows', 'Linux'],
