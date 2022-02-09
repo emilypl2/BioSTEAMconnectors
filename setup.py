@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='biosteamconnectors',
     packages=['biosteamconnectors'],
-    version='0.0.4',
+    version='0.0.1',
     license='UIUC',
     author=['Emily Lin', 'Yalin Li'],
     author_email='Emilypl2@illinois.edu',
