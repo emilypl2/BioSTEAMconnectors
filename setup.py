@@ -14,8 +14,7 @@ setup(
         "Guest Group Lab": "https://engineeringforsustainability.com/",
         "CABBI-DayCent": "https://github.com/cabbi-bio/DayCent-CABBI",
     },
-    install_requires=['biosteam>=2.31.21', 'thermosteam>=0.27.18',
-                      'pandas>=1.3.2', 'numpy', 'xlwings'],
+    install_requires=['biosteam', 'biorefineries', 'xlwings'],
     package_data=
         {'BioSTEAMconnectors': [
                     'DayCent/*',
@@ -25,7 +24,6 @@ setup(
                  'Environment :: Console',
                  'Topic :: Education',
                  'Topic :: Scientific/Engineering',
-                 'Topic :: Scientific/Engineering :: Chemistry',
                  'Topic :: Scientific/Engineering :: Mathematics',
                  'Intended Audience :: Developers',
                  'Intended Audience :: Education',
@@ -41,5 +39,5 @@ setup(
                  'Programming Language :: Python :: 3.7',
                  'Programming Language :: Python :: 3.8',
                  ],
-    keywords=['techno-economic analysis', 'life cycle assessment'],
+    keywords=['biosteam', 'daycent', 'bioeconomy', 'biorefineries', 'carbon intensity', 'techno-economic analysis', 'life cycle assessment'],
 )
