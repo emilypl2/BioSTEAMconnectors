@@ -135,10 +135,8 @@ class Var:
 # Default parameter values in FDCIC
 # =============================================================================
 
+# In sheet "Parameters"
 default_parameters = [
-    # =========================================================================
-    # Sheet "Parameters"
-    # =========================================================================
     ### Lower Heating Values of fuels/Fuel specification ###
     Var('Diesel_LHV', 128450, 'Btu/gal'),
     Var('Gasoline_LHV', 112194, 'Btu/gal'),
@@ -182,7 +180,6 @@ default_parameters = [
     ### P2O5 content in Phosphorus fertilizer ###
     Var('MAP_P2O5', 0.48),
     Var('DAP_P2O5', 0.48),
-    ### Urea content in UAN, linked to `UAN_Prod_UreaIn` ###
     ### Lime acidified ###
     Var('CO2_content_in_CaCO3', 0.44, 'g CO2/g CaCO3'), # 44/100
     Var('Percent_Lime_Acidified', 0.492, 'fraction'),
@@ -223,11 +220,29 @@ default_parameters = [
     Var('CH4_GWP', 29.8, 'kg CO2e/kg CH4'),
     Var('N2O_GWP', 273, 'kg CO2e/kg N2O'),
     Var('Biogenic_CH4_GWP', 28, 'kg CO2e/kg CH4'),
-    
-    # =========================================================================
-    # Sheet "Intermediate"
-    # =========================================================================
     ]
+
+# In sheet "Intermediate"
+default_parameters.extend([
+    # =========================================================================
+    # Production Usage Amount
+    # =========================================================================
+    ### Ammonia ###
+    Var('Ammonia_Prod_NGIn', 27.9613103359878, 'mmBtu/ton', notes='NG is natural gas'),
+    Var('Ammonia_Prod_ElecIn', 0.188560619556814, 'mmBtu/ton'),
+    Var('Ammonia_Prod_HydrogenIn', 0, 'ton/ton'),
+    Var('Ammonia_Prod_NitrogenIn', 0, 'ton/ton'),
+    Var('Green_Ammonia_Prod_NGIn', 27.9613103359878, 'mmBtu/ton', notes='NG is natural gas'),
+    Var('Green_Ammonia_Prod_ElecIn', 1.11135683852937, 'mmBtu/ton'),
+    Var('Green_Ammonia_Prod_HydrogenIn', 0.197284, 'ton/ton'),
+    Var('Green_Ammonia_Prod_NitrogenIn', 0.929778, 'ton/ton'),
+    ### Urea ###
+    Var('Urea_Prod_NGIn', 3.98108341487325, 'mmBtu/ton', notes='NG is natural gas'),
+    Var('Urea_Prod_ElecIn', 0.455717971896938, 'mmBtu/ton'),
+    Var('Urea_Prod_AmmoniaIn', 0.567, 'ton ammonia/ton'),
+    
+    
+    ])
 
 # %%
 
