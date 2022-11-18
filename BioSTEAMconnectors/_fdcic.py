@@ -12,124 +12,9 @@ TODO: could consider using openpyxl to get the cell range values from FDCIC/GREE
 '''
 
 from math import e
-from thermosteam.units_of_measure import AbsoluteUnitsOfMeasure as auom
+from . import Var
 
-class Var:
-    '''
-    A simple class used to represent variable value with unit of measurement.
-    
-    Parameters
-    ----------
-    name : str
-        Name of this variable.
-    value : int|float
-        Value of this variable.
-    unit : str
-        Default unit of measurement of this variable.
-    enable_unit_conversion : bool
-        Whether to enable unit conversion.
-    notes : str
-        Additional notes on this variable.
-        
-    Examples
-    --------
-    >>> Diesel_LHV = Var('Diesel LHV', 128450, 'Btu/gal')
-    >>> Diesel_LHV
-    Diesel LHV: 128450 Btu/gal
-    
-    Calling this unit without any input will return the value in
-    the default unit of measurement.
-    
-    >>> Diesel_LHV()
-    128450
-    >>> When `enable_unit_conversion` is enabled, will attempt to convert the unit.
-    >>> Diesel_LHV.enable_unit_conversion = True
-    >>> Diesel_LHV('Btu/m3') # doctest +ELLIPSIS
-    33932900.1254...
-    '''
-    def __init__(self, name, value, unit, notes='', enable_unit_conversion=False):
-        self.name = name
-        self.value = value
-        self.unit = unit
-        self.notes = notes
-        self.enable_unit_conversion = enable_unit_conversion
-        
-    def __repr__(self, new_unit=None):
-        if new_unit:
-            if not self.enable_unit_conversion:
-                raise ValueError('Unit conversion is not enabled.')
-            else:
-                unit = new_unit
-                val = self(new_unit)
-        else:
-            unit = self.unit
-            val = self.value
-        return f'{self.name}: {val} {unit}'
-        
-    def __call__(self, new_unit=None):
-        val = self.value
-        if not new_unit: return val
-        if not self.enable_unit_conversion:
-            raise ValueError('Unit conversion is not enabled.')
-        unit = new_unit
-        return auom(unit).convert(val, new_unit)    
-
-# class RefVar(Var):
-#     '''
-#     Non-independent variables whose value is based on a linked variable.
-#     Note that this class needs to be attached to the same :class:`FDCIC` object
-#     that its reference variable is attached to.
-    
-#     Values and units of this class cannot be changed
-#     (should change the reference object instead),
-#     and unit conversion is disabled.
-    
-#     Parameters
-#     ----------
-#     name : str
-#         Name of the this variable.
-#     ref_name : str
-#         Name of the reference variable.
-#     fdcic : obj
-#         The :class:`FDCIC` object that this variable and its reference variable
-#         are attached to.
-#     factor : int|float
-#         A multiplication factor on top of the value of the reference variable.
-#     notes : str
-#         Additional notes on this variable.
-#     '''
-#     def __init__(self, name, ref_name, fdcic, factor=1, notes=''):
-#         self.name = name
-#         self.ref_name = ref_name
-#         self.fdcic = fdcic
-#         self.factor = factor
-#         self.notes = notes
-
-#     @property
-#     def enable_unit_conversion(self):
-#         return False
-
-#     @property
-#     def fdcic(self):
-#         fdcic = self._fdcic
-#         if not fdcic:
-#             raise AttributeError(f'Variable {self.name} has not been assigned a `FDCIC` class.')
-#         return fdcic
-#     @fdcic.setter
-#     def fdcic(self, i):
-#         self._fdcic = i
-    
-#     @property
-#     def ref(self):
-#         return getattr(self.fdcic, self.ref_name)
-    
-#     @property
-#     def value(self):
-#         return self.ref.value
-
-#     @property
-#     def unit(self):
-#         return self.ref.unit
+__all__ = ('FDCIC', 'default_parameters',)
 
 
 # %%
@@ -484,24 +369,6 @@ default_parameters.extend([
     Var('NA_TD_GHG_Final', 50731.7629804194, 'g CO2/ton'),    
     ])
 
-# %%
-
-# =============================================================================
-# Default user inputs in FDCIC
-# =============================================================================
-
-
-default_inputs = [
-    ### Rice: N content of above and below ground biomass and N2O Emission ###
-    Var('Rice_water_regime_during_cultivation', 'Continuously flooded'),
-    Var('Rice_water_regime_pre_season', 'Non flooded pre-season >365 d'),
-    Var('Rice_time_for_straw_incorporation', 'Straw incorporated shortly (<30 days) before cultivation'),
-    ### Regionalized N2O emission factors table ###
-    Var('Climate_zone', 'No consideration'),
-    Var('Nfertilizer_N2O_factor_US_rice', 0.004+0.00374, notes='direct and indirect'),
-    ### 4R nitrogen management practice for corn farming,  ###
-    Var('N_balance_assumed', 0, 'kg N/ha'),
-    ]
 
 # %%
 
@@ -512,14 +379,13 @@ class FDCIC:
     
     Parameters
     ----------
-    parameters : iterable(obj)
-        A sequence of :class:`Var` objects that contain contants.
-    user_inputs : iterable(obj)
-        A sequence of :class:`Var` objects that contain user inputs.
+    crop_inputs : iterable(obj)
+        A sequence of :class:`Var` objects that contain crop inputs.
     '''
     acronyms = {
         'AN': 'ammonium nitrate',
         'AS': 'ammonium sulfate',
+        'bu': 'bushels',
         'GB': 'gasoline blendstock',
         'GS': 'grain sorghum',
         'LPG': 'liquid petroleum gas',
@@ -531,28 +397,32 @@ class FDCIC:
         'TD': 'transportation & distribution',
         'UAN': 'urea-ammonium nitrate solution',
         }
+    parameters = default_parameters
     
-    def __init__(self, parameters=[], user_inputs=[]):
-        params = parameters or default_parameters
-        self.parameters = {p.name: p for p in params}
-        inputs = user_inputs or default_inputs
-        self.user_inputs = {i.name: i for i in inputs}
+    def __init__(self, crop_inputs):
+        self.crop_inputs = {i.name: i for i in crop_inputs}
         self.reset_variables()
 
     def reset_variables(self, variables=[]):
         '''
-        Reset variable values based on the provided or saved list of parameters/inputs.
+        Reset variable to their default values.
         '''
         variables = variables or self.variables
         for var in self.variables:
-            setattr(self, var.name, var.value)
-            
+            setattr(self, var.name, var.default_value)
+    
+    def calculate_corn_input_intensities(self):
+        #!!! TODO
+        pass
+    
+    
     @property
     def variables(self):
         dct = self.parameters
-        dct.update(self.inputs)
+        dct.update(self.crop_inputs)
         return dct
-        
+    
+    # Universal Aliases
     @property
     def g_to_lb(self):
         '''Same as `g_per_lb`.'''
@@ -572,11 +442,6 @@ class FDCIC:
     def kg_to_lb(self):
         '''Same as `kg_per_lb`.'''
         return self.kg_per_lb
-    
-    @property
-    def lb2bu_CanCorn(self):
-        '''Same as `lb_per_bu_CanCorn`.'''
-        return self.lb_per_bu_CanCorn
     
     @property
     def L_to_gal(self):
@@ -618,66 +483,19 @@ class FDCIC:
         '''Same as `UAN_Prod_UreaIn`.'''
         return self.UAN_Prod_UreaIn
     
+    # Corn
     @property
-    def SFw(self):
-        '''Scaling factor to account for the differences in water regime during the cultivation period (SFw).'''
-        regime = self.Rice_water_regime_during_cultivation
-        if regime == 'Continuously flooded': return 1
-        elif regime == 'Single drainage period': return 0.71
-        elif regime == 'Multiple drainage period': return 0.55
-        elif regime == 'Regular rainfed': return 0.54
-        elif regime == 'Drought prone': return 0.16
-        elif regime == 'Deep water': return 0.06
-        raise ValueError(
-            'Invalid input for `Rice_water_regime_during_cultivation`, '
-            'can only be one of "Continuously flooded", "Single drainage period", '
-            '"Multiple drainage period", "Regular rainfed", "Drought prone", or "Deep water", '
-            f'not {regime}.')
-
-    @property
-    def SFp(self):
-        '''Scaling factor to account for the differences in water regime in the pre-season before the cultivation period (SFp).'''
-        regime = self.Rice_water_regime_pre_season
-        if regime == 'Non flooded pre-season <180 d': return 1
-        elif regime == 'Non flooded pre-season >180 d': return 0.89
-        elif regime == 'Flooded pre-season (>30 d)': return 2.41
-        elif regime == 'Non-flooded pre-season >365 d': return 0.59
-        raise ValueError(
-            'Invalid input for `Rice_time_for_straw_incorporation`, '
-            'can only be one of "Non flooded pre-season <180 d", "Non flooded pre-season >180 d", '
-            '"Flooded pre-season (>30 d)", or "Non-flooded pre-season >365 d", '
-            f'not {regime}.')
-
-    @property
-    def Rice_ammendment_factor(self):
-        '''Conversion factor for organic amendment in terms of its relative effect with respect to straw applied shortly before cultivation.'''
-        app_time = self.Rice_time_for_straw_incorporation
-        if app_time == 'Straw incorporated shortly (<30 days) before cultivation': return 1 
-        elif app_time == 'Straw incorporated long (>30 days) before cultivation': return 0.19
-        raise ValueError(
-            'Invalid input for `Rice_time_for_straw_incorporation`, '
-            'can only be "Straw incorporated shortly (<30 days) before cultivation", or '
-            '"Straw incorporated long (>30 days) before cultivation", '
-            f'not {app_time}.')
-    
-    @property
-    def SFo(self):
-        '''Scaling factor should vary for both type and amount of organic amendment applied  (SFo).'''
-        return (1+self.Rice_straw_application_rate*self.Rice_ammendment_factor)**0.59
-    
-    @property
-    def Annual_CH4_emission_from_rice_field(self):
-        '''In kg CH4/ha.'''
-        return self.EFc*self.SFw*self.SFp*self.Fo*self.Rice_cultivation_period
+    def Nitrogen_balance_assumed(self):
+        '''Same as `N_balance_assumed`.'''
+        return self.N_balance_assumed
     
     @property
     def Nfertilizer_direct_N2O_factor_US_corn(self):
         zone = self.Climate_zone
         if zone in ('No consideration', 'NA', 'Wet or Moist'): return 0.01
         elif zone == 'Dry': return 0.005
-        raise ValueError(
-            'Invalid input for `Climate_zone`, can only be one of "No consideration", '
-            f'"NA", "Wet or Moist", or "Dry", not {zone}.')
+        raise ValueError(f'{zone} is invalid for `Climate_zone`, '
+                         'check `Climate_zone.notes` for valid values.')
     
     @property
     def Nfertilizer_indirect_N2O_factor_US_corn(self):
@@ -689,16 +507,88 @@ class FDCIC:
     @property
     def Nfertilizer_N2O_factor_US_corn(self):
         return self.Nfertilizer_direct_N2O_factor_US_corn+self.Nfertilizer_indirect_N2O_factor_US_corn
-
-    @property
-    def Nitrogen_balance_assumed(self):
-        '''Same as `N_balance_assumed`.'''
-        return self.N_balance_assumed
     
     @property
     def Nfertilizer_direct_N2O_4R_US_corn(self):
         '''N2O-N emissions per bushel of corn under 4R practice, [g GHG/bu].'''
         return e**(0.339+0.0047*self.N_balance_assumed)
+    
+    @property
+    def Diesel_CornFarming(self):
+        '''In Btu/bu.'''
+        return self.Diesel_CornFarming_usage*self.Diesel_LHV/self.CornYield_TS
+    
+    @property
+    def Gasoline_CornFarming(self):
+        '''In Btu/bu.'''
+        return self.Gasoline_CornFarming_usage*self.Gasoline_LHV/self.CornYield_TS
+    
+    @property
+    def NG_CornFarming(self):
+        '''In Btu/bu.'''
+        return self.NG_CornFarming_usage*self.NG_LHV/self.CornYield_TS
+
+    @property
+    def LPG_CornFarming(self):
+        '''In Btu/bu.'''
+        return self.LPG_CornFarming_usage*self.LPG_LHV/self.CornYield_TS
+    
+    @property
+    def Electricity_CornFarming(self):
+        '''In Btu/bu.'''
+        return self.Electricity_CornFarming_usage*self.Electricity_LHV/self.CornYield_TS
+
+    #!!!PAUSED HERE AT ADDING THE ONES FOR THE N FERTILIZERS
+    
+    # Canadian Corn
+    @property
+    def lb2bu_CanCorn(self):
+        '''Same as `lb_per_bu_CanCorn`.'''
+        return self.lb_per_bu_CanCorn
+    
+    # Rice
+    @property
+    def SFw(self):
+        '''Scaling factor to account for the differences in water regime during the cultivation period (SFw).'''
+        regime = self.Rice_water_regime_during_cultivation
+        if regime == 'Continuously flooded': return 1
+        elif regime == 'Single drainage period': return 0.71
+        elif regime == 'Multiple drainage period': return 0.55
+        elif regime == 'Regular rainfed': return 0.54
+        elif regime == 'Drought prone': return 0.16
+        elif regime == 'Deep water': return 0.06
+        raise ValueError(f'{regime} is invalid for `Rice_water_regime_during_cultivation`, '
+                         'check `Rice_water_regime_during_cultivation.notes` for valid values.')
+
+    @property
+    def SFp(self):
+        '''Scaling factor to account for the differences in water regime in the pre-season before the cultivation period (SFp).'''
+        regime = self.Rice_water_regime_pre_season
+        if regime == 'Non flooded pre-season <180 d': return 1
+        elif regime == 'Non flooded pre-season >180 d': return 0.89
+        elif regime == 'Flooded pre-season (>30 d)': return 2.41
+        elif regime == 'Non-flooded pre-season >365 d': return 0.59
+        raise ValueError(f'{regime} is invalid for `Rice_water_regime_pre_season`, '
+                         'check `Rice_water_regime_pre_season.notes` for valid values.')
+
+    @property
+    def Rice_ammendment_factor(self):
+        '''Conversion factor for organic amendment in terms of its relative effect with respect to straw applied shortly before cultivation.'''
+        app_time = self.Rice_time_for_straw_incorporation
+        if app_time == 'Straw incorporated shortly (<30 days) before cultivation': return 1 
+        elif app_time == 'Straw incorporated long (>30 days) before cultivation': return 0.19
+        raise ValueError(f'{app_time} is invalid for `Rice_time_for_straw_incorporation`, '
+                         'check `Rice_time_for_straw_incorporation.notes` for valid values.')
+    
+    @property
+    def SFo(self):
+        '''Scaling factor should vary for both type and amount of organic amendment applied  (SFo).'''
+        return (1+self.Rice_straw_application_rate*self.Rice_ammendment_factor)**0.59
+    
+    @property
+    def Annual_CH4_emission_from_rice_field(self):
+        '''In kg CH4/ha.'''
+        return self.EFc*self.SFw*self.SFp*self.Fo*self.Rice_cultivation_period
 
     @property
     def Herbicide_RiceFarming_CO2(self):
@@ -717,9 +607,6 @@ class FDCIC:
     
     @property
     def Insecticide_RiceFarming_GHG(self):
-        '''Same as `Insecticide_RiceFarming_GHG`.'''
+        '''Same as `Insecticide_CornFarming_GHG`.'''
         return self.Insecticide_CornFarming_GHG
 
-        
-    
-# %%
