@@ -388,6 +388,7 @@ class FDCIC:
         'bu': 'bushels',
         'GB': 'gasoline blendstock',
         'GS': 'grain sorghum',
+        'Lime': 'CaCO3',
         'LPG': 'liquid petroleum gas',
         'NA': 'nitric acid',
         'NG': 'natural gas',
@@ -411,6 +412,7 @@ class FDCIC:
         for var in self.variables:
             setattr(self, var.name, var.default_value)
     
+    #!!! PAUSED HERE, SEE IF THIS CAN BE GENERALIZED FOR ALL CROPS
     def calculate_corn_input_intensities(self):
         #!!! TODO
         pass
@@ -502,7 +504,9 @@ class FDCIC:
         zone = self.Climate_zone
         if zone in ('No consideration', 'NA'): return 0.00374
         elif zone == 'Wet or Moist': return 0.00418
-        elif zone == 'Dry': return 0.00055    
+        elif zone == 'Dry': return 0.00055
+        raise ValueError(f'{zone} is invalid for `Climate_zone`, '
+                         'check `Climate_zone.notes` for valid values.')
     
     @property
     def Nfertilizer_N2O_factor_US_corn(self):
@@ -516,29 +520,154 @@ class FDCIC:
     @property
     def Diesel_CornFarming(self):
         '''In Btu/bu.'''
-        return self.Diesel_CornFarming_usage*self.Diesel_LHV/self.CornYield_TS
+        return self.Diesel_CornFarming_val*self.Diesel_LHV/self.CornYield_TS
     
     @property
     def Gasoline_CornFarming(self):
         '''In Btu/bu.'''
-        return self.Gasoline_CornFarming_usage*self.Gasoline_LHV/self.CornYield_TS
+        return self.Gasoline_CornFarming_val*self.Gasoline_LHV/self.CornYield_TS
     
     @property
     def NG_CornFarming(self):
         '''In Btu/bu.'''
-        return self.NG_CornFarming_usage*self.NG_LHV/self.CornYield_TS
+        return self.NG_CornFarming_val*self.NG_LHV/self.CornYield_TS
 
     @property
     def LPG_CornFarming(self):
         '''In Btu/bu.'''
-        return self.LPG_CornFarming_usage*self.LPG_LHV/self.CornYield_TS
+        return self.LPG_CornFarming_val*self.LPG_LHV/self.CornYield_TS
     
     @property
     def Electricity_CornFarming(self):
         '''In Btu/bu.'''
-        return self.Electricity_CornFarming_usage*self.Electricity_LHV/self.CornYield_TS
+        return self.Electricity_CornFarming_val*self.Electricity_LHV/self.CornYield_TS
+    
+    @property
+    def Ammonia_CornFarming(self):
+        '''In g N/bu.'''
+        return self.Ammonia_CornFarming_val*self.g_to_lb/self.CornYield_TS
+    
+    @property
+    def Urea_CornFarming(self):
+        '''In g N/bu.'''
+        return self.Urea_CornFarming_val*self.g_to_lb/self.CornYield_TS
+    
+    @property
+    def AN_CornFarming(self):
+        '''In g N/bu.'''
+        return self.AN_CornFarming_val*self.g_to_lb/self.CornYield_TS
 
-    #!!!PAUSED HERE AT ADDING THE ONES FOR THE N FERTILIZERS
+    @property
+    def AS_CornFarming(self):
+        '''In g N/bu.'''
+        return self.AS_CornFarming_val*self.g_to_lb/self.CornYield_TS
+
+    @property
+    def UAN_CornFarming(self):
+        '''In g N/bu.'''
+        return self.UAN_CornFarming_val*self.g_to_lb/self.CornYield_TS
+
+    @property
+    def MAP_CornFarming_asNfert(self):
+        '''In g N/bu.'''
+        return self.MAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+
+    @property
+    def DAP_CornFarming_asNfert(self):
+        '''In g N/bu.'''
+        return self.DAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+
+    @property
+    def MAP_CornFarming_asPfert(self):
+        '''In g P2O5/bu.'''
+        return self.MAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
+
+    @property
+    def K2O_CornFarming(self):
+        '''In g K2O/bu.'''
+        return self.K2O_CornFarming_val*self.g_to_lb/self.CornYield_TS
+    
+    @property
+    def CaCO3_CornFarming(self):
+        '''In g/bu.'''
+        return self.CaCO3_CornFarming_val*self.g_to_lb/self.CornYield_TS
+    
+    @property
+    def HerbicideUse_CornFarming(self):
+        '''In g/bu.'''
+        return self.HerbicideUse_CornFarming_val/self.CornYield_TS
+    
+    @property
+    def InsecticideUse_CornFarming(self):
+        '''In g/bu.'''
+        return self.InsecticideUse_CornFarming_val/self.CornYield_TS
+
+    @property
+    def Diesel_RyeCCFarming(self):
+        '''In Btu/bu.'''
+        CC_Choice = self.CC_Choice
+        if CC_Choice == 'No cover crop': return 0
+        elif CC_Choice == 'Cover crop': return self.Diesel_RyeCCFarming_val/self.CornYield_TS
+        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
+                         'check `CC_Choice.notes` for valid values.')
+    
+    @property
+    def HerbicideUse_RyeCCFarming(self):
+        '''In g/bu.'''
+        CC_Choice = self.CC_Choice
+        if CC_Choice == 'No cover crop': return 0
+        elif CC_Choice == 'Cover crop': return self.HerbicideUse_RyeCCFarming_val/self.CornYield_TS
+        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
+                         'check `CC_Choice.notes` for valid values.') 
+
+    @property
+    def RyeCCfarming_Ninbiomass_residue(self):
+        '''In g N/bu.'''
+        CC_Choice = self.CC_Choice
+        if CC_Choice == 'No cover crop': return 0
+        elif CC_Choice == 'Cover crop': return self.RyeCCfarming_Ninbiomass_residue_val/self.CornYield_TS
+        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
+                         'check `CC_Choice.notes` for valid values.') 
+    
+    @property
+    def Manure_N_inputs_Soil(self):
+        '''In g N/bu.'''
+        Manure_Choice = self.Manure_Choice
+        if Manure_Choice == 'No manure': return 0
+        elif Manure_Choice == 'Manure':
+            return self.Manure_AppTot * (
+                self.Manure_AppRatio_Swine*self.Swine_manure_N +
+                self.Manure_AppRatio_Dairy*self.Dairy_manure_N +
+                self.Manure_AppRatio_Cattle*self.Cattle_manure_N +
+                self.Manure_AppRatio_Chicken*self.Chicken_manure_N
+                ) / self.CornYield_TS
+        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
+                         'check `Manure_Choice.notes` for valid values.') 
+    
+    @property
+    def Diesel_ManureApplication(self):
+        '''In g Btu/bu.'''
+        Manure_Choice = self.Manure_Choice
+        if Manure_Choice == 'No manure': return 0
+        elif Manure_Choice == 'Manure': return self.Diesel_ManureApplication / self.CornYield_TS
+        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
+                         'check `Manure_Choice.notes` for valid values.') 
+    
+    @property
+    def Diesel_ManureTransportation(self):
+        '''In g Btu/bu.'''
+        Manure_Choice = self.Manure_Choice
+        if Manure_Choice == 'No manure': return 0
+        elif Manure_Choice == 'Manure':
+            return (
+                self.Manure_AppTot * # ton/acre
+                self.Diesel_ManureTransportation_distance * # mile
+                self.Diesel_ManureTransportation_fuel / # Btu/ton/mile
+                self.CornYield_TS # bu/acre
+                )
+        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
+                         'check `Manure_Choice.notes` for valid values.')
+    
     
     # Canadian Corn
     @property

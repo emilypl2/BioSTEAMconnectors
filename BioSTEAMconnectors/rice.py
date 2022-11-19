@@ -12,7 +12,9 @@ from . import Var
 __all__ = ('default_rice_inputs',)
 
 default_rice_inputs = [
-    # Related to N content of above and below ground biomass and N2O Emission 
+    # Related to the regionalized N2O emission factors table
+    Var('Nfertilizer_N2O_factor_US_rice', 0.004+0.00374, notes='direct and indirect'),
+    # Related to the N content of above and below ground biomass and N2O Emission 
     Var('Rice_water_regime_during_cultivation', 'Continuously flooded',
         notes='Can only be one of "Continuously flooded", "Single drainage period", '
         '"Multiple drainage period", "Regular rainfed", "Drought prone", or "Deep water".'),
