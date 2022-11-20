@@ -256,7 +256,6 @@ default_parameters.extend([
     Var('SA_Brazilian_Upstream_N2O', 0.91835804021288, 'g N2O/ton'),
     
     ### Product Emissions ###
-    #!!! units uncertain, double-check
     # Conventional Ammonia
     Var('Ammonia_InputsCons_CO2', 418019.378867298, 'g CO2/ton'),
     Var('Ammonia_InputsCons_GHG', 419299.093955674, 'g CO2/ton'),
@@ -308,17 +307,17 @@ default_parameters.extend([
     Var('Lime_TD_CO2_Final', 6505.50857920391, 'g CO2/ton'),
     Var('Lime_TD_GHG_Final', 6752.39214215056, 'g CO2/ton'),
     # Diesel (US)
-    Var('CornFarming_DieselCons_CO2', 0.0776795063144252, 'g CO2/mmBtu'),
-    Var('CornFarming_DieselCons_GHG', 0.0782208477272848, 'g CO2/mmBtu'),
+    Var('CornFarming_DieselCons_CO2', 0.0776795063144252, 'g CO2/Btu'),
+    Var('CornFarming_DieselCons_GHG', 0.0782208477272848, 'g CO2/Btu'),
     # Gasoline (blendstock)
-    Var('CornFarming_GBCons_CO2', 0.0744767583446154, 'g CO2/mmBtu'),
-    Var('CornFarming_GBCons_GHG', 0.075194823011016, 'g CO2/mmBtu'),
+    Var('CornFarming_GBCons_CO2', 0.0744767583446154, 'g CO2/Btu'),
+    Var('CornFarming_GBCons_GHG', 0.075194823011016, 'g CO2/Btu'),
     # Natural gas
-    Var('CornFarming_NGCons_CO2', 0.0568897869032699, 'g CO2/mmBtu'),
-    Var('CornFarming_NGCons_GHG', 0.0686122391032699, 'g CO2/mmBtu'),
+    Var('CornFarming_NGCons_CO2', 0.0568897869032699, 'g CO2/Btu'),
+    Var('CornFarming_NGCons_GHG', 0.0686122391032699, 'g CO2/Btu'),
     # Liquefied petroleum gas
-    Var('CornFarming_LPGCons_CO2', 0.0680396477962499, 'g CO2/mmBtu'),
-    Var('CornFarming_LPGCons_GHG', 0.0693835121962499, 'g CO2/mmBtu'),
+    Var('CornFarming_LPGCons_CO2', 0.0680396477962499, 'g CO2/Btu'),
+    Var('CornFarming_LPGCons_GHG', 0.0693835121962499, 'g CO2/Btu'),
     # Herbicide
     Var('Herbicide_CornFarming_CO2', 17.8510998760147, 'g CO2/ton'),
     Var('Herbicide_CornFarming_GHG', 18.875995540809, 'g CO2/ton'),
@@ -354,14 +353,14 @@ default_parameters.extend([
     Var('Brazilian_Lime_InputsCons_CO2', 6239.25302609347, 'g CO2/ton'),
     Var('Brazilian_Lime_InputsCons_GHG', 6289.06159243846, 'g CO2/ton'),
     # Diesel (Brazilian)
-    Var('SugarcaneFarming_DieselCons_CO2', 0.0777608192847955, 'g CO2/mmBtu'),
-    Var('SugarcaneFarming_DieselCons_GHG', 0.0783650996008699, 'g CO2/mmBtu'),
+    Var('SugarcaneFarming_DieselCons_CO2', 0.0777608192847955, 'g CO2/Btu'),
+    Var('SugarcaneFarming_DieselCons_GHG', 0.0783650996008699, 'g CO2/Btu'),
     # Sugarcane soil amendment
     Var('SugarcaneFarming_SoilAmendment_TD_CO2', 18.680313715969, 'g CO2/ton'),
     Var('SugarcaneFarming_SoilAmendment_TD_GHG', 530.435404440136, 'g CO2/ton'),
     # Gasoline (Brazilian)
-    Var('SugarcaneFarming_GasolineCons_CO2', 0.0744767583446154, 'g CO2/mmBtu'),
-    Var('SugarcaneFarming_GasolineCons_GHG', 0.075194823011016, 'g CO2/mmBtu'),
+    Var('SugarcaneFarming_GasolineCons_CO2', 0.0744767583446154, 'g CO2/Btu'),
+    Var('SugarcaneFarming_GasolineCons_GHG', 0.075194823011016, 'g CO2/Btu'),
     # Nitric acid, the original spreadsheet is "Nitrid", probably a typo
     Var('NA_Process_CO2', 0, 'g CO2/ton'),
     Var('NA_Process_GHG', 1177449, 'g CO2/ton'),
@@ -379,12 +378,16 @@ class FDCIC:
     
     Parameters
     ----------
+    crop : str
+        Name of the crop, can be one of "Corn", "Soybean", "Canadian Corn",
+        "Sorghum", "Sugarcane", or "Rice".
     crop_inputs : iterable(obj)
         A sequence of :class:`Var` objects that contain crop inputs.
     '''
     acronyms = {
         'AN': 'ammonium nitrate',
         'AS': 'ammonium sulfate',
+        'CF': 'characterization factor',
         'bu': 'bushels',
         'GB': 'gasoline blendstock',
         'GS': 'grain sorghum',
@@ -400,7 +403,8 @@ class FDCIC:
         }
     parameters = default_parameters
     
-    def __init__(self, crop_inputs):
+    def __init__(self, crop, crop_inputs):
+        self.crop = crop
         self.crop_inputs = {i.name: i for i in crop_inputs}
         self.reset_variables()
 
@@ -411,12 +415,7 @@ class FDCIC:
         variables = variables or self.variables
         for var in self.variables:
             setattr(self, var.name, var.default_value)
-    
-    #!!! PAUSED HERE, SEE IF THIS CAN BE GENERALIZED FOR ALL CROPS
-    def calculate_corn_input_intensities(self):
-        #!!! TODO
-        pass
-    
+   
     
     @property
     def variables(self):
@@ -485,6 +484,339 @@ class FDCIC:
         '''Same as `UAN_Prod_UreaIn`.'''
         return self.UAN_Prod_UreaIn
     
+    # Characterization factors
+    @property
+    def _CF_Ammonia_shared(self):
+        ammonia_type = self.Nfertilizer_source_cor
+        if ammonia_type not in ('Conventional', 'Green'):
+            raise ValueError(f'{ammonia_type} is invalid for `Nfertilizer_source_corn`, '
+                             'check `Nfertilizer_source_corn.notes` for valid values.')
+        prefix = '' if ammonia_type == 'Conventional' else 'Green_'
+        vals = [
+            getattr(self, f'{prefix}Ammonia_Prod_NGIn'),
+            getattr(self, f'{prefix}Ammonia_Prod_ElecIn'),
+            getattr(self, f'{prefix}Ammonia_Prod_HydrogenIn'),
+            getattr(self, f'{prefix}Ammonia_Prod_NitrogenIn'),
+            getattr(self, f'{prefix}Ammonia_InputsCons_GHG'),
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_Ammonia +
+            vals[1]*self.Electricity_upstream_CO2 +
+            vals[2]*self.H2_upstream_CO2 +
+            vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_Ammonia +
+            vals[1]*self.Electricity_upstream_CH4 +
+            vals[2]*self.H2_upstream_CH4 +
+            vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_Ammonia +
+            vals[1]*self.Electricity_upstream_N2O +
+            vals[2]*self.H2_upstream_N2O +
+            vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_N2O
+            )
+        return CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP
+    
+    @property
+    def CF_Ammonia_Final(self):
+        '''In g GHG/ton ammonia.'''
+        return self._CF_Ammonia_shared + self.Ammonia_TD_GHG_Final
+    
+    @property
+    def CF_Ammonia_Intermediate(self):
+        '''In g GHG/ton ammonia.'''
+        return self._CF_Ammonia_shared + self.Ammonia_TD_GHG_Intermediate
+    
+    @property
+    def CF_Urea(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.Urea_Prod_NGIn,
+            self.Urea_Prod_ElecIn,
+            self.Urea_Prod_AmmoniaIn,
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            vals[2]*self.CF_Ammonia_Intermediate +
+            self.Urea_InputsCons_GHG + self.Urea_Process_GHG + self.Urea_TD_GHG_Final
+            )
+    
+    @property
+    def CF_NA(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.NA_ElecIn,
+            self.NA_AmmoniaIn,
+            ]
+        CO2 = vals[0]*self.Electricity_upstream_CO2
+        CH4 = vals[0]*self.Electricity_upstream_CH4
+        N2O = vals[0]*self.Electricity_upstream_N2O
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            vals[1]*self.CF_Ammonia_Intermediate +
+            self.NA_Process_GHG + self.NA_TD_GHG_Final
+            )
+    
+    @property
+    def CF_AN(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.AN_Prod_NGIn,
+            self.AN_Prod_ElecIn,
+            self.AN_Prod_AmmoniaIn,
+            self.AN_Prod_NAIn,
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            vals[2]*self.CF_Ammonia_Intermediate +
+            vals[3]*self.CF_NA +
+            self.AN_InputsCons_GHG + self.AN_TD_GHG_Final
+            )
+    
+    @property
+    def CF_AS(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.AS_Prod_AmmoniaIn,
+            self.AS_Prod_SAIn,
+            ]
+        CO2 = vals[1]*self.SA_Upstream_CO2
+        CH4 = vals[1]*self.SA_Upstream_CH4
+        N2O = vals[1]*self.SA_Upstream_N2O
+        return (
+            vals[0]*self.CF_Ammonia_Intermediate +
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            self.AS_TD_GHG_Final
+            )
+    
+    @property
+    def CF_UAN(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.UAN_Prod_NGIn,
+            self.UAN_Prod_ElecIn,
+            self.UAN_Prod_UreaIns,
+            self.UAN_Prod_ANIn,
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            vals[2]*self.CF_Urea + vals[3]*self.CF_AN +
+            self.UAN_InputsCons_GHG + self.UAN_TD_GHG_Final
+            )
+    
+    def _get_MAP_DAP_CF(self, prefix='M'):
+        vals = [
+            getattr(self, f'{prefix}AP_Prod_NGIn'),
+            getattr(self, f'{prefix}AP_Prod_ElecIn'),
+            getattr(self, f'{prefix}AP_Prod_AmmoniaIn'),
+            getattr(self, f'{prefix}AP_Prod_PAIn'), # already adjusted to P2O5
+            getattr(self, f'{prefix}AP_InputsCons_GHG'),
+            getattr(self, f'{prefix}AP_TD_GHG_Final'),
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2 +
+            vals[3]*self.PA_Upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4 +
+            vals[3]*self.PA_Upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O +
+            vals[3]*self.PA_Upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            vals[2]*self.CF_Ammonia_Intermediate +
+            self.MAP_InputsCons_GHG + self.MAP_TD_GHG_Final
+            )
+    
+    @property
+    def CF_MAP(self):
+        '''In g GHG/ton.'''
+        return self._get_MAP_DAP_CF('M')
+    
+    @property
+    def CF_DAP(self):
+        '''In g GHG/ton.'''
+        return self._get_MAP_DAP_CF('D')
+    
+    @property
+    def CF_K2O(self):
+        '''In g GHG/ton.'''
+        vals = [
+            self.K2O_Prod_NGIn,
+            self.K2O_Prod_ElecIn,
+            self.K2O_Prod_DieselIn,
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2 +
+            vals[2]*self.Diesel_upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4 +
+            vals[2]*self.Diesel_upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O +
+            vals[2]*self.Diesel_upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            self.K2O_InputsCons_GHG + self.K2O_TD_GHG_Final
+            )
+    
+    @property
+    def CF_Lime(self):
+        '''CaCO3, in g GHG/ton.'''
+        vals = [
+            self.Lime_Prod_NGIn,
+            self.Lime_Prod_ElecIn,
+            self.Lime_Prod_ROIn,
+            self.Lime_Prod_DieselIn,
+            self.Lime_Prod_CoalIn,
+            self.Lime_Prod_GasolineIn,
+            ]
+        CO2 = (
+            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CO2 +
+            vals[2]*self.RO_upstream_CO2 +
+            vals[3]*self.Diesel_upstream_CO2+
+            vals[4]*self.Coal_upstream_CO2 +
+            vals[5]*self.GB_upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_CH4 +
+            vals[2]*self.RO_upstream_CH4 +
+            vals[3]*self.Diesel_upstream_CH4+
+            vals[4]*self.Coal_upstream_CH4 +
+            vals[5]*self.GB_upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+            vals[1]*self.Electricity_upstream_N2O +
+            vals[2]*self.RO_upstream_N2O +
+            vals[3]*self.Diesel_upstream_N2O+
+            vals[4]*self.Coal_upstream_N2O +
+            vals[5]*self.GB_upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            self.Lime_InputsCons_GHG + self.Lime_TD_GHG_Final
+            )
+    
+    @property
+    def CF_Diesel(self):
+        '''In g GHG/Btu.'''
+        return (
+            self.Diesel_upstream_CO2*self.CO2_GWP +
+            self.Diesel_upstream_CH4*self.CH4_GWP +
+            self.Diesel_upstream_N2O*self.N2O_GWP +
+            self.CornFarming_DieselCons_GHG
+            )
+    
+    @property
+    def CF_GB(self):
+        '''In g GHG/Btu.'''
+        return (
+            self.GB_upstream_CO2*self.CO2_GWP +
+            self.GB_upstream_CH4*self.CH4_GWP +
+            self.GB_upstream_N2O*self.N2O_GWP +
+            self.CornFarming_GBCons_GHG
+            )
+    
+    @property
+    def CF_NG(self):
+        '''In g GHG/Btu.'''
+        return (
+            self.NG_upstream_CO2_for_StationaryFuel*self.CO2_GWP +
+            self.NG_upstream_CH4_for_StationaryFuel*self.CH4_GWP +
+            self.NG_upstream_N2O_for_StationaryFuel*self.N2O_GWP +
+            self.CornFarming_NGCons_GHG
+            )
+    
+    @property
+    def CF_LPG(self):
+        '''In g GHG/Btu.'''
+        return (
+            self.LPG_upstream_CO2*self.CO2_GWP +
+            self.LPG_upstream_CH4*self.CH4_GWP +
+            self.LPG_upstream_N2O*self.N2O_GWP +
+            self.CornFarming_LPGCons_GHG
+            )
+    
+    @property
+    def CF_Electricity(self):
+        '''In g GHG/Btu.'''
+        return (
+            self.Electricity_upstream_CO2*self.CO2_GWP +
+            self.Electricity_upstream_CH4*self.CH4_GWP +
+            self.Electricity_upstream_N2O*self.N2O_GWP
+            )
+    
+    @property
+    def CF_Herbicide(self):
+        '''In g GHG/g.'''
+        crop = self.crop
+        crop = 'GS' if crop == 'Sorghum' else crop
+        try: return getattr(self, f'Herbicide_{crop}Farming_GHG')
+        except AttributeError: return 0
+        
+    @property
+    def CF_Insecticide(self):
+        '''In g GHG/g.'''
+        crop = self.crop
+        crop = 'GS' if crop == 'Sorghum' else crop
+        try: return getattr(self, f'Insecticide_{crop}Farming_GHG')
+        except AttributeError: return 0
+    
+    #!!! PAUSED HERE AT ADDING THE ADDITIONAL ONES FOR OTHER CROPS
+    
     # Corn
     @property
     def Nitrogen_balance_assumed(self):
@@ -505,8 +837,6 @@ class FDCIC:
         if zone in ('No consideration', 'NA'): return 0.00374
         elif zone == 'Wet or Moist': return 0.00418
         elif zone == 'Dry': return 0.00055
-        raise ValueError(f'{zone} is invalid for `Climate_zone`, '
-                         'check `Climate_zone.notes` for valid values.')
     
     @property
     def Nfertilizer_N2O_factor_US_corn(self):
@@ -617,8 +947,6 @@ class FDCIC:
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
         elif CC_Choice == 'Cover crop': return self.HerbicideUse_RyeCCFarming_val/self.CornYield_TS
-        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
-                         'check `CC_Choice.notes` for valid values.') 
 
     @property
     def RyeCCfarming_Ninbiomass_residue(self):
@@ -626,8 +954,6 @@ class FDCIC:
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
         elif CC_Choice == 'Cover crop': return self.RyeCCfarming_Ninbiomass_residue_val/self.CornYield_TS
-        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
-                         'check `CC_Choice.notes` for valid values.') 
     
     @property
     def Manure_N_inputs_Soil(self):
@@ -650,8 +976,6 @@ class FDCIC:
         Manure_Choice = self.Manure_Choice
         if Manure_Choice == 'No manure': return 0
         elif Manure_Choice == 'Manure': return self.Diesel_ManureApplication / self.CornYield_TS
-        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
-                         'check `Manure_Choice.notes` for valid values.') 
     
     @property
     def Diesel_ManureTransportation(self):
@@ -665,9 +989,6 @@ class FDCIC:
                 self.Diesel_ManureTransportation_fuel / # Btu/ton/mile
                 self.CornYield_TS # bu/acre
                 )
-        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
-                         'check `Manure_Choice.notes` for valid values.')
-    
     
     # Canadian Corn
     @property
