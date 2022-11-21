@@ -7,11 +7,12 @@
 # github.com/BioSTEAMDevelopmentGroup/biosteam/blob/master/LICENSE.txt
 # for license details.
 
-from . import Var
+from . import default_inputs, Inputs, Results, Var
 
 __all__ = ('default_rice_inputs',)
 
 default_rice_inputs = [
+    *default_inputs,
     # Related to the regionalized N2O emission factors table
     Var('Nfertilizer_N2O_factor_US_rice', 0.004+0.00374, notes='direct and indirect'),
     # Related to the N content of above and below ground biomass and N2O Emission 
@@ -26,3 +27,30 @@ default_rice_inputs = [
         notes='Can only be "Straw incorporated shortly (<30 days) before cultivation" or '
         '"Straw incorporated long (>30 days) before cultivation"'),
     ]
+
+
+class RiceInputs(Inputs):
+    '''User inputs for corn.'''
+    
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_rice_inputs
+        self.reset_variables()
+
+    
+    @property
+    def crop(self):
+        return 'Rice'
+
+    @property
+    def Nfertilizer_source_Rice(self):
+        '''Same as `Nfertilizer_source`.'''
+        return self.Nfertilizer_source
+    @Nfertilizer_source_Rice.setter
+    def Nfertilizer_source_Rice(self, i):
+        self.Nfertilizer_source = i
+
+
+class RiceResults(Results):
+    '''Result calculation for rice.'''
+    
+    

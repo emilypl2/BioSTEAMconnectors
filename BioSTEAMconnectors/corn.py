@@ -14,11 +14,12 @@ depending on the region of interest.
 PAUSED AT ADDING RESULTS FOR CORN
 '''
 
-from . import Inputs, Var
+from . import default_inputs, Inputs, Results, Var
 
-__all__ = ('default_corn_inputs',)
+__all__ = ('CornInputs', 'CornResults', 'default_corn_inputs',)
 
 default_corn_inputs = [
+    *default_inputs,
     # Yield
     Var('CornYield_TS', 178.4, 'bu/acre'),
     # Energy
@@ -73,7 +74,7 @@ default_corn_inputs = [
         notes='Can only be one of "Business as usual", '
         '"4R (Right time, Right place, Right form, and Right rate)", '
         'or "Enhanced Efficiency Fertilizer".'),
-    Var('Nfertilizer_source', 'Conventional',
+    Var('Nfertilizer_source_corn', 'Conventional',
         notes='Can only be "Conventional" (steam methane reforming) or '
         '"Green" (refer to GREET for the default green ammonia pathway).'),
     # SOC
@@ -88,7 +89,10 @@ default_corn_inputs = [
 class CornInputs(Inputs):
     '''User inputs for corn.'''
     
-    parameters = default_corn_inputs
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_corn_inputs
+        self.reset_variables()
+
     
     @property
     def crop(self):
@@ -101,3 +105,16 @@ class CornInputs(Inputs):
     @Nfertilizer_source_corn.setter
     def Nfertilizer_source_corn(self, i):
         self.Nfertilizer_source = i
+        
+    @property
+    def Yield_TS(self):
+        '''Same as `CornYield_TS`.'''
+        return self.CornYield_TS
+    @Yield_TS.setter
+    def Yield_TS(self, i):
+        self.CornYield_TS = i
+
+#!!! PAUSED HERE, NEED TO DROP THE CROP TYPE WHEN ADDING FORMULA
+class CornResults(Results):
+    '''Result calculation for corn.'''
+    

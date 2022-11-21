@@ -9,51 +9,8 @@
 
 from thermosteam.units_of_measure import AbsoluteUnitsOfMeasure as auom
 
-__all__ = ('Inputs', 'Var',)
+__all__ = ('Inputs', 'Var', 'default_inputs',)
 
-# %%
-
-class Inputs:
-    '''
-    A general class to store variable values, not intended to be used standalone.
-    '''
-    acronyms = {
-        'AN': 'ammonium nitrate',
-        'AS': 'ammonium sulfate',
-        'CF': 'characterization factor',
-        'bu': 'bushels',
-        'GB': 'gasoline blendstock',
-        'GS': 'grain sorghum',
-        'Lime': 'CaCO3',
-        'LPG': 'liquid petroleum gas',
-        'NA': 'nitric acid',
-        'NG': 'natural gas',
-        'PA': 'phosphoric acid',
-        'RO': 'residual oil',
-        'SA': 'sulfuric acid',
-        'TD': 'transportation & distribution',
-        'UAN': 'urea-ammonium nitrate solution',
-        }
-    
-    parameters = {}
-    
-    def __init__(self):
-        self.reset_variables()
-    
-    def reset_variables(self, variables=[]):
-        '''
-        Reset variable to their default values.
-        '''
-        variables = variables or self.variables
-        for var in self.variables:
-            setattr(self, var.name, var.default_value)
-            
-    @property
-    def variables(self):
-         return self.parameters
-
-
-# %%
 
 class Var:
     '''
@@ -125,6 +82,65 @@ class Var:
         '''Default unit of this variable.'''
         return self._default_unit
 
+
+# %%
+
+class Variables:
+    '''
+    A general class to store parameter and input values, not intended to be used standalone
+    (i.e., only its subclasses should be used).
+    '''
+    acronyms = {
+        'AN': 'ammonium nitrate',
+        'AS': 'ammonium sulfate',
+        'CF': 'characterization factor',
+        'bu': 'bushels',
+        'GB': 'gasoline blendstock',
+        'GS': 'grain sorghum',
+        'Lime': 'CaCO3',
+        'LPG': 'liquid petroleum gas',
+        'NA': 'nitric acid',
+        'NG': 'natural gas',
+        'PA': 'phosphoric acid',
+        'RO': 'residual oil',
+        'SA': 'sulfuric acid',
+        'TD': 'transportation & distribution',
+        'UAN': 'urea-ammonium nitrate solution',
+        }
+    
+    def reset_variables(self, variables=[]):
+        '''
+        Reset variable to their default values.
+        '''
+        variables = variables or self.variables
+        for var in self.variables:
+            setattr(self, var.name, var.default_value)
+
+
+# %%
+
+default_inputs = [    
+    Var('Nfertilizer_source', 'Conventional',
+        notes='Can only be "Conventional" (steam methane reforming) or '
+        '"Green" (refer to GREET for the default green ammonia pathway).'),
+    ]
+
+
+class Inputs(Variables):
+    '''A general class to store crop inputs.'''
+
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_inputs
+            
+        
+    @property
+    def parameters(self):
+         return {}
+
+    @property
+    def variables(self):
+         return self.inputs
+     
 
 # %%
 

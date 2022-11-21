@@ -14,7 +14,7 @@ Note: Canadian corn not included at this stage.
 '''
 
 from math import e
-from . import Inputs, Var
+from . import Variables, Var
 
 __all__ = ('FDCIC', 'default_parameters',)
 
@@ -377,7 +377,7 @@ default_parameters.extend([
 
 # %%
 
-class FDCIC(Inputs):
+class FDCIC(Variables):
     '''
     A general class to calculate feedstock carbon intensity and cost as in
     GREET's feedstock carbon intensitity calculator.
@@ -392,12 +392,17 @@ class FDCIC(Inputs):
     
     def __init__(self, crop_inputs):
         self.crop_inputs = crop_inputs
-        super().__init__()
+        self.reset_variables()
 
     @property
     def crop(self):
         '''Name of the crop of interest.'''
         return self.crop_inputs.crop
+    
+    @property
+    def inputs(self):
+        '''Crop-specific inputs.'''
+        return self.crop_inputs.inputs
 
     @property
     def variables(self):
@@ -407,7 +412,7 @@ class FDCIC(Inputs):
             dct.update(self.parameters)
         else:
             self._variables = dct = self.parameters.copy()
-        dct.update(self.crop_inputs.parameters)
+        dct.update(self.crop_inputs.inputs)
         return dct
     
     # Universal Aliases
@@ -867,30 +872,35 @@ class FDCIC(Inputs):
         try: return getattr(self, f'Insecticide_{crop}Farming_GHG')
         except AttributeError: return 0
     
+    #!!! Figure out ways to batch-adding properties
     # Corn
     @property
     def Nitrogen_balance_assumed(self):
         '''Same as `N_balance_assumed`.'''
         return self.N_balance_assumed
     
-    @property
-    def Nfertilizer_direct_N2O_factor_US_corn(self):
-        zone = self.Climate_zone
-        if zone in ('No consideration', 'NA', 'Wet or Moist'): return 0.01
-        elif zone == 'Dry': return 0.005
-        raise ValueError(f'{zone} is invalid for `Climate_zone`, '
-                         'check `Climate_zone.notes` for valid values.')
     
     @property
-    def Nfertilizer_indirect_N2O_factor_US_corn(self):
-        zone = self.Climate_zone
+    def Nfertilizer_direct_N2O_factor_US(self):
+        zone = self.crop_inputs.Climate_zone
+        if zone in ('No consideration', 'NA', 'Wet or Moist'): return 0.01
+        elif zone == 'Dry': return 0.005
+        raise ValueError(f'{zone} is invalid for `crop_inputs.Climate_zone`, '
+                         'check `crop_inputs.Climate_zone.notes` for valid values.')
+    Nfertilizer_direct_N2O_factor_US_corn = Nfertilizer_direct_N2O_factor_US
+    
+    @property
+    def Nfertilizer_indirect_N2O_factor_US(self):
+        zone = self.crop_inputs.Climate_zone
         if zone in ('No consideration', 'NA'): return 0.00374
         elif zone == 'Wet or Moist': return 0.00418
         elif zone == 'Dry': return 0.00055
+    Nfertilizer_indirect_N2O_factor_US_corn = Nfertilizer_indirect_N2O_factor_US
     
     @property
-    def Nfertilizer_N2O_factor_US_corn(self):
-        return self.Nfertilizer_direct_N2O_factor_US_corn+self.Nfertilizer_indirect_N2O_factor_US_corn
+    def Nfertilizer_N2O_factor_US(self):
+        return self.Nfertilizer_direct_N2O_factor_US+self.Nfertilizer_indirect_N2O_factor_US
+    Nfertilizer_N2O_factor_US_corn = Nfertilizer_N2O_factor_US
     
     @property
     def Nfertilizer_direct_N2O_4R_US_corn(self):
@@ -898,112 +908,135 @@ class FDCIC(Inputs):
         return e**(0.339+0.0047*self.N_balance_assumed)
     
     @property
-    def Diesel_CornFarming(self):
+    def Diesel_Farming(self):
         '''In Btu/bu.'''
-        return self.Diesel_CornFarming_val*self.Diesel_LHV/self.CornYield_TS
+        # return self.Diesel_CornFarming_val*self.Diesel_LHV/self.CornYield_TS
+        return getattr(self, f'Diesel_{self.crop}Farming_val')*self.Diesel_LHV/self.crop_inputs.Yield_TS
     
     @property
-    def Gasoline_CornFarming(self):
+    def Gasoline_Farming(self):
         '''In Btu/bu.'''
-        return self.Gasoline_CornFarming_val*self.Gasoline_LHV/self.CornYield_TS
+        # return self.Gasoline_CornFarming_val*self.Gasoline_LHV/self.CornYield_TS
+        return getattr(self, f'Gasoline_{self.crop}Farming_val')*self.Gasoline_LHV/self.crop_inputs.Yield_TS
     
     @property
-    def NG_CornFarming(self):
+    def NG_Farming(self):
         '''In Btu/bu.'''
-        return self.NG_CornFarming_val*self.NG_LHV/self.CornYield_TS
+        # return self.NG_CornFarming_val*self.NG_LHV/self.CornYield_TS
+        return getattr(self, f'NG_{self.crop}Farming_val')*self.NG_LHV/self.crop_inputs.Yield_TS
 
     @property
-    def LPG_CornFarming(self):
+    def LPG_Farming(self):
         '''In Btu/bu.'''
-        return self.LPG_CornFarming_val*self.LPG_LHV/self.CornYield_TS
+        # return self.LPG_CornFarming_val*self.LPG_LHV/self.CornYield_TS
+        return getattr(self, f'LPG_{self.crop}Farming_val')*self.LPG_LHV/self.crop_inputs.Yield_TS
     
     @property
-    def Electricity_CornFarming(self):
+    def Electricity_Farming(self):
         '''In Btu/bu.'''
-        return self.Electricity_CornFarming_val*self.Electricity_LHV/self.CornYield_TS
+        # return self.Electricity_CornFarming_val*self.Electricity_LHV/self.CornYield_TS
+        return getattr(self, f'Electricity_{self.crop}Farming_val')*self.Electricity_LHV/self.crop_inputs.Yield_TS
     
     @property
-    def Ammonia_CornFarming(self):
+    def Ammonia_Farming(self):
         '''In g N/bu.'''
-        return self.Ammonia_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.Ammonia_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'Ammonia_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
-    def Urea_CornFarming(self):
+    def Urea_Farming(self):
         '''In g N/bu.'''
-        return self.Urea_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.Urea_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'Urea_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
-    def AN_CornFarming(self):
+    def AN_Farming(self):
         '''In g N/bu.'''
-        return self.AN_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.AN_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'AN_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def AS_CornFarming(self):
+    def AS_Farming(self):
         '''In g N/bu.'''
-        return self.AS_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.AS_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'AS_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def UAN_CornFarming(self):
+    def UAN_Farming(self):
         '''In g N/bu.'''
-        return self.UAN_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.UAN_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'UAN_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def MAP_CornFarming_asNfert(self):
+    def MAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return self.MAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+        # return self.MAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def DAP_CornFarming_asNfert(self):
+    def DAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return self.DAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+        # return self.DAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def MAP_CornFarming_asPfert(self):
+    def MAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        return self.MAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
+        # return self.MAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+    
+    @property
+    def DAP_Farming_asPfert(self):
+        '''In g P2O5/bu.'''
+        # return self.DAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
-    def K2O_CornFarming(self):
+    def K2O_Farming(self):
         '''In g K2O/bu.'''
-        return self.K2O_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.K2O_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'K2O_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
-    def CaCO3_CornFarming(self):
+    def CaCO3_Farming(self):
         '''In g/bu.'''
-        return self.CaCO3_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        # return self.CaCO3_CornFarming_val*self.g_to_lb/self.CornYield_TS
+        return getattr(self, f'CaCO3_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
-    def HerbicideUse_CornFarming(self):
+    def HerbicideUse_Farming(self):
         '''In g/bu.'''
-        return self.HerbicideUse_CornFarming_val/self.CornYield_TS
+        # return self.HerbicideUse_CornFarming_val/self.CornYield_TS
+        return getattr(self, f'HerbicideUse_{self.crop}Farming_val')/self.crop_inputs.Yield_TS
     
     @property
-    def InsecticideUse_CornFarming(self):
+    def InsecticideUse_Farming(self):
         '''In g/bu.'''
-        return self.InsecticideUse_CornFarming_val/self.CornYield_TS
+        # return self.InsecticideUse_CornFarming_val/self.CornYield_TS
+        return getattr(self, f'InsecticideUse_{self.crop}Farming_val')/self.crop_inputs.Yield_TS
 
     @property
     def Diesel_RyeCCFarming(self):
         '''In Btu/bu.'''
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
-        elif CC_Choice == 'Cover crop': return self.Diesel_RyeCCFarming_val/self.CornYield_TS
-        raise ValueError(f'{CC_Choice} is invalid for `CC_Choice`, '
-                         'check `CC_Choice.notes` for valid values.')
+        elif CC_Choice == 'Cover crop': return self.Diesel_RyeCCFarming_val/self.Yield_TS
+        raise ValueError(f'{CC_Choice} is invalid for `crop_inputs.CC_Choice`, '
+                         'check `crop_inputs.CC_Choice.notes` for valid values.')
     
     @property
     def HerbicideUse_RyeCCFarming(self):
         '''In g/bu.'''
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
-        elif CC_Choice == 'Cover crop': return self.HerbicideUse_RyeCCFarming_val/self.CornYield_TS
+        elif CC_Choice == 'Cover crop': return self.HerbicideUse_RyeCCFarming_val/self.Yield_TS
 
     @property
     def RyeCCfarming_Ninbiomass_residue(self):
         '''In g N/bu.'''
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
-        elif CC_Choice == 'Cover crop': return self.RyeCCfarming_Ninbiomass_residue_val/self.CornYield_TS
+        elif CC_Choice == 'Cover crop': return self.RyeCCfarming_Ninbiomass_residue_val/self.Yield_TS
     
     @property
     def Manure_N_inputs_Soil(self):
@@ -1017,8 +1050,8 @@ class FDCIC(Inputs):
                 self.Manure_AppRatio_Cattle*self.Cattle_manure_N +
                 self.Manure_AppRatio_Chicken*self.Chicken_manure_N
                 ) / self.CornYield_TS
-        raise ValueError(f'{Manure_Choice} is invalid for `Manure_Choice`, '
-                         'check `Manure_Choice.notes` for valid values.') 
+        raise ValueError(f'{Manure_Choice} is invalid for `crop_inputs.Manure_Choice`, '
+                         'check `crop_inputs.Manure_Choice.notes` for valid values.') 
     
     @property
     def Diesel_ManureApplication(self):
@@ -1040,7 +1073,8 @@ class FDCIC(Inputs):
                 self.CornYield_TS # bu/acre
                 )
     
-    # Canadian Corn
+    
+    # Canadian Corn, not currently in use
     @property
     def lb2bu_CanCorn(self):
         '''Same as `lb_per_bu_CanCorn`.'''
@@ -1057,8 +1091,8 @@ class FDCIC(Inputs):
         elif regime == 'Regular rainfed': return 0.54
         elif regime == 'Drought prone': return 0.16
         elif regime == 'Deep water': return 0.06
-        raise ValueError(f'{regime} is invalid for `Rice_water_regime_during_cultivation`, '
-                         'check `Rice_water_regime_during_cultivation.notes` for valid values.')
+        raise ValueError(f'{regime} is invalid for `crop_inputs.Rice_water_regime_during_cultivation`, '
+                         'check `crop_inputs.Rice_water_regime_during_cultivation.notes` for valid values.')
 
     @property
     def SFp(self):
@@ -1068,8 +1102,8 @@ class FDCIC(Inputs):
         elif regime == 'Non flooded pre-season >180 d': return 0.89
         elif regime == 'Flooded pre-season (>30 d)': return 2.41
         elif regime == 'Non-flooded pre-season >365 d': return 0.59
-        raise ValueError(f'{regime} is invalid for `Rice_water_regime_pre_season`, '
-                         'check `Rice_water_regime_pre_season.notes` for valid values.')
+        raise ValueError(f'{regime} is invalid for `crop_inputs.Rice_water_regime_pre_season`, '
+                         'check `crop_inputs.Rice_water_regime_pre_season.notes` for valid values.')
 
     @property
     def Rice_ammendment_factor(self):
@@ -1077,8 +1111,8 @@ class FDCIC(Inputs):
         app_time = self.Rice_time_for_straw_incorporation
         if app_time == 'Straw incorporated shortly (<30 days) before cultivation': return 1 
         elif app_time == 'Straw incorporated long (>30 days) before cultivation': return 0.19
-        raise ValueError(f'{app_time} is invalid for `Rice_time_for_straw_incorporation`, '
-                         'check `Rice_time_for_straw_incorporation.notes` for valid values.')
+        raise ValueError(f'{app_time} is invalid for `crop_inputs.Rice_time_for_straw_incorporation`, '
+                         'check `crop_inputs.Rice_time_for_straw_incorporation.notes` for valid values.')
     
     @property
     def SFo(self):
@@ -1109,4 +1143,3 @@ class FDCIC(Inputs):
     def Insecticide_RiceFarming_GHG(self):
         '''Same as `Insecticide_CornFarming_GHG`.'''
         return self.Insecticide_CornFarming_GHG
-

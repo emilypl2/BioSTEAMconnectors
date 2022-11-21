@@ -8,20 +8,23 @@
 # for license details.
 
 from . import DayCent
-from . import _var
+from . import _variables
 from . import _fdcic
+from . import _results
 from . import corn
 from . import rice
 
-from ._var import *
+from ._variables import *
 from ._fdcic import *
+from ._results import *
 from .corn import *
 from .rice import *
 
 __all__ = (
     'DayCent',
-    *_var.__all__,
+    *_variables.__all__,
     *_fdcic.__all__,
+    *_results.__all__,
     *corn.__all__,
     *rice.__all__,
     )
