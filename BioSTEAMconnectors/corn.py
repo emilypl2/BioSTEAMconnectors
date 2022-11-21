@@ -10,9 +10,11 @@
 '''
 TODO: consider adding the SOC lookup table and choose the N2O emission factor
 depending on the region of interest.
+
+PAUSED AT ADDING RESULTS FOR CORN
 '''
 
-from . import Var
+from . import Inputs, Var
 
 __all__ = ('default_corn_inputs',)
 
@@ -71,7 +73,7 @@ default_corn_inputs = [
         notes='Can only be one of "Business as usual", '
         '"4R (Right time, Right place, Right form, and Right rate)", '
         'or "Enhanced Efficiency Fertilizer".'),
-    Var('Nfertilizer_source_corn', 'Conventional',
+    Var('Nfertilizer_source', 'Conventional',
         notes='Can only be "Conventional" (steam methane reforming) or '
         '"Green" (refer to GREET for the default green ammonia pathway).'),
     # SOC
@@ -81,3 +83,21 @@ default_corn_inputs = [
     Var('Ethanol_yield', 2.88220583817581, 'gal/bu',
         notes='Dry mill with corn oil extraction, default value from GREET.'),
     ]
+
+
+class CornInputs(Inputs):
+    '''User inputs for corn.'''
+    
+    parameters = default_corn_inputs
+    
+    @property
+    def crop(self):
+        return 'Corn'
+
+    @property
+    def Nfertilizer_source_corn(self):
+        '''Same as `Nfertilizer_source`.'''
+        return self.Nfertilizer_source
+    @Nfertilizer_source_corn.setter
+    def Nfertilizer_source_corn(self, i):
+        self.Nfertilizer_source = i

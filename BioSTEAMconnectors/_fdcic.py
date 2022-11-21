@@ -8,11 +8,13 @@
 # for license details.
 
 '''
-TODO: could consider using openpyxl to get the cell range values from FDCIC/GREET
+TODO: could consider using openpyxl to get the cell range values from FDCIC/GREET.
+
+Note: Canadian corn not included at this stage.
 '''
 
 from math import e
-from . import Var
+from . import Inputs, Var
 
 __all__ = ('FDCIC', 'default_parameters',)
 
@@ -126,6 +128,8 @@ default_parameters.extend([
     Var('Urea_Prod_NGIn', 3.98108341487325, 'mmBtu/ton'),
     Var('Urea_Prod_ElecIn', 0.455717971896938, 'mmBtu/ton'),
     Var('Urea_Prod_AmmoniaIn', 0.567, 'ton ammonia/ton'),
+    # Nitric Acid (for sugarcane)
+    Var('NA_Prod_AmmoniaIn', 0.288, 'ton ammonia/ton'),
     # Ammonium Nitrate
     Var('AN_Prod_NGIn', 0.636285470195725, 'mmBtu/ton'),
     Var('AN_Prod_ElecIn', 0.214961307498556, 'mmBtu/ton'),
@@ -347,6 +351,8 @@ default_parameters.extend([
     # Brazilian Phosphate (P2O5)
     # Brazilian P2O5 production does not consume natural gas onsite,
     # and therefore, does not incur onsite GHG emissions
+    Var('PA_InputsCons_CO2', 0, 'g CO2/ton'),
+    Var('PA_InputsCons_GHG', 0, 'g CO2/ton'),
     Var('PA_TD_CO2_Final', 86711.2988467573, 'g CO2/ton'),
     Var('PA_TD_GHG_Final', 90207.3943782476, 'g CO2/ton'),
     # Brazilian Lime
@@ -371,56 +377,37 @@ default_parameters.extend([
 
 # %%
 
-class FDCIC:
+class FDCIC(Inputs):
     '''
     A general class to calculate feedstock carbon intensity and cost as in
     GREET's feedstock carbon intensitity calculator.
     
     Parameters
     ----------
-    crop : str
-        Name of the crop, can be one of "Corn", "Soybean", "Canadian Corn",
-        "Sorghum", "Sugarcane", or "Rice".
-    crop_inputs : iterable(obj)
-        A sequence of :class:`Var` objects that contain crop inputs.
+    crop_inputs : :class:`CropInputs`
+        Object containing crop inputs.
     '''
-    acronyms = {
-        'AN': 'ammonium nitrate',
-        'AS': 'ammonium sulfate',
-        'CF': 'characterization factor',
-        'bu': 'bushels',
-        'GB': 'gasoline blendstock',
-        'GS': 'grain sorghum',
-        'Lime': 'CaCO3',
-        'LPG': 'liquid petroleum gas',
-        'NA': 'nitric acid',
-        'NG': 'natural gas',
-        'PA': 'phosphoric acid',
-        'RO': 'residual oil',
-        'SA': 'sulfuric acid',
-        'TD': 'transportation & distribution',
-        'UAN': 'urea-ammonium nitrate solution',
-        }
+    
     parameters = default_parameters
     
-    def __init__(self, crop, crop_inputs):
-        self.crop = crop
-        self.crop_inputs = {i.name: i for i in crop_inputs}
-        self.reset_variables()
+    def __init__(self, crop_inputs):
+        self.crop_inputs = crop_inputs
+        super().__init__()
 
-    def reset_variables(self, variables=[]):
-        '''
-        Reset variable to their default values.
-        '''
-        variables = variables or self.variables
-        for var in self.variables:
-            setattr(self, var.name, var.default_value)
-   
-    
+    @property
+    def crop(self):
+        '''Name of the crop of interest.'''
+        return self.crop_inputs.crop
+
     @property
     def variables(self):
-        dct = self.parameters
-        dct.update(self.crop_inputs)
+        if hasattr(self, '_variables'):
+            dct = self._variables
+            dct.empty()
+            dct.update(self.parameters)
+        else:
+            self._variables = dct = self.parameters.copy()
+        dct.update(self.crop_inputs.parameters)
         return dct
     
     # Universal Aliases
@@ -485,12 +472,15 @@ class FDCIC:
         return self.UAN_Prod_UreaIn
     
     # Characterization factors
+    def _get_NG_Elec_source(self):
+        return 'Ammonia', '' if self.crop != 'BrazilianSugarcane' else 'StationaryFuel', 'Brazilian_'
+    
     @property
     def _CF_Ammonia_shared(self):
-        ammonia_type = self.Nfertilizer_source_cor
+        ammonia_type = self.Nfertilizer_source
         if ammonia_type not in ('Conventional', 'Green'):
-            raise ValueError(f'{ammonia_type} is invalid for `Nfertilizer_source_corn`, '
-                             'check `Nfertilizer_source_corn.notes` for valid values.')
+            raise ValueError(f'{ammonia_type} is invalid for `Nfertilizer_source`, '
+                             'check `Nfertilizer_source.notes` for valid values.')
         prefix = '' if ammonia_type == 'Conventional' else 'Green_'
         vals = [
             getattr(self, f'{prefix}Ammonia_Prod_NGIn'),
@@ -499,21 +489,22 @@ class FDCIC:
             getattr(self, f'{prefix}Ammonia_Prod_NitrogenIn'),
             getattr(self, f'{prefix}Ammonia_InputsCons_GHG'),
             ]
+        NG, Elec = self._get_NG_Elec_source()
         CO2 = (
-            vals[0]*self.NG_upstream_CO2_for_Ammonia +
-            vals[1]*self.Electricity_upstream_CO2 +
+            vals[0]*getattr(self, f'NG_upstream_CO2_for_{NG}') +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CO2') +
             vals[2]*self.H2_upstream_CO2 +
             vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_CO2
             )
         CH4 = (
-            vals[0]*self.NG_upstream_CH4_for_Ammonia +
-            vals[1]*self.Electricity_upstream_CH4 +
+            vals[0]*getattr(self, f'NG_upstream_CH4_for_{NG}') +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CH4') +
             vals[2]*self.H2_upstream_CH4 +
             vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_CH4
             )
         N2O = (
-            vals[0]*self.NG_upstream_N2O_for_Ammonia +
-            vals[1]*self.Electricity_upstream_N2O +
+            vals[0]*getattr(self, f'NG_upstream_N2O_for_{NG}') +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_N2O') +
             vals[2]*self.H2_upstream_N2O +
             vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_N2O
             )
@@ -537,17 +528,18 @@ class FDCIC:
             self.Urea_Prod_ElecIn,
             self.Urea_Prod_AmmoniaIn,
             ]
+        NG, Elec = self._get_NG_Elec_source()
         CO2 = (
             vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CO2
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CO2')
             )
         CH4 = (
             vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CH4
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CH4')
             )
         N2O = (
             vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_N2O
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_N2O')
             )
         return (
             CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
@@ -580,24 +572,26 @@ class FDCIC:
             self.AN_Prod_AmmoniaIn,
             self.AN_Prod_NAIn,
             ]
+        NG, Elec = self._get_NG_Elec_source()
         CO2 = (
             vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CO2
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CO2')
             )
         CH4 = (
             vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CH4
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CH4')
             )
         N2O = (
             vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_N2O
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_N2O')
             )
-        return (
+        GHG = (
             CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
             vals[2]*self.CF_Ammonia_Intermediate +
-            vals[3]*self.CF_NA +
             self.AN_InputsCons_GHG + self.AN_TD_GHG_Final
             )
+        if 'Brazilian' not in self.crop: return GHG + vals[3]*self.CF_NA
+        return GHG + self.NA_Prod_AmmoniaIn*self.CF_Ammonia_Intermediate
     
     @property
     def CF_AS(self):
@@ -683,6 +677,34 @@ class FDCIC:
         return self._get_MAP_DAP_CF('D')
     
     @property
+    def CF_P2O5(self):
+        '''For Brazilian sugarcane, in g GHG/ton.'''
+        vals = [
+            self.PA_Brazilian_Prod_ElecIn,
+            self.PA_Brazilian_Prod_PhosRockIn,
+            self.PA_Brazilian_Prod_SAIn,
+            ]
+        CO2 = (
+            vals[0]*self.Electricity_Brazilian_upstream_CO2 +
+            vals[1]*self.PhosRock_Brazilian_Upstream_CO2 +
+            vals[2]*self.SA_Brazilian_Upstream_CO2
+            )
+        CH4 = (
+            vals[0]*self.Electricity_Brazilian_upstream_CH4 +
+            vals[1]*self.PhosRock_Brazilian_Upstream_CH4 +
+            vals[2]*self.SA_Brazilian_Upstream_CH4
+            )
+        N2O = (
+            vals[0]*self.Electricity_Brazilian_upstream_N2O +
+            vals[1]*self.PhosRock_Brazilian_Upstream_N2O +
+            vals[2]*self.SA_Brazilian_Upstream_N2O
+            )
+        return (
+            CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+            self.PA_InputsCons_GHG + self.PA_TD_GHG_Final
+            )
+    
+    @property
     def CF_K2O(self):
         '''In g GHG/ton.'''
         vals = [
@@ -713,52 +735,74 @@ class FDCIC:
     @property
     def CF_Lime(self):
         '''CaCO3, in g GHG/ton.'''
+        if 'Brazilian' not in self.crop:
+            vals = [
+                self.Lime_Prod_NGIn,
+                self.Lime_Prod_ElecIn,
+                self.Lime_Prod_ROIn,
+                self.Lime_Prod_DieselIn,
+                self.Lime_Prod_CoalIn,
+                self.Lime_Prod_GasolineIn,
+                ]
+            CO2 = (
+                vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
+                vals[1]*self.Electricity_upstream_CO2 +
+                vals[2]*self.RO_upstream_CO2 +
+                vals[3]*self.Diesel_upstream_CO2+
+                vals[4]*self.Coal_upstream_CO2 +
+                vals[5]*self.GB_upstream_CO2
+                )
+            CH4 = (
+                vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
+                vals[1]*self.Electricity_upstream_CH4 +
+                vals[2]*self.RO_upstream_CH4 +
+                vals[3]*self.Diesel_upstream_CH4+
+                vals[4]*self.Coal_upstream_CH4 +
+                vals[5]*self.GB_upstream_CH4
+                )
+            N2O = (
+                vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
+                vals[1]*self.Electricity_upstream_N2O +
+                vals[2]*self.RO_upstream_N2O +
+                vals[3]*self.Diesel_upstream_N2O+
+                vals[4]*self.Coal_upstream_N2O +
+                vals[5]*self.GB_upstream_N2O
+                )
+            return (
+                CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
+                self.Lime_InputsCons_GHG + self.Lime_TD_GHG_Final
+                )
         vals = [
-            self.Lime_Prod_NGIn,
-            self.Lime_Prod_ElecIn,
-            self.Lime_Prod_ROIn,
-            self.Lime_Prod_DieselIn,
-            self.Lime_Prod_CoalIn,
-            self.Lime_Prod_GasolineIn,
+            self.Lime_Brazilian_Prod_ElecIn,
+            self.Lime_Brazilian_Prod_DieselIn,
             ]
         CO2 = (
-            vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CO2 +
-            vals[2]*self.RO_upstream_CO2 +
-            vals[3]*self.Diesel_upstream_CO2+
-            vals[4]*self.Coal_upstream_CO2 +
-            vals[5]*self.GB_upstream_CO2
+            vals[0]*self.Electricity_Brazilian_upstream_CO2 +
+            vals[1]*self.Diesel_upstream_CO2
             )
         CH4 = (
-            vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CH4 +
-            vals[2]*self.RO_upstream_CH4 +
-            vals[3]*self.Diesel_upstream_CH4+
-            vals[4]*self.Coal_upstream_CH4 +
-            vals[5]*self.GB_upstream_CH4
+            vals[0]*self.Electricity_Brazilian_upstream_CH4 +
+            vals[1]*self.Diesel_upstream_CH4
             )
         N2O = (
-            vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_N2O +
-            vals[2]*self.RO_upstream_N2O +
-            vals[3]*self.Diesel_upstream_N2O+
-            vals[4]*self.Coal_upstream_N2O +
-            vals[5]*self.GB_upstream_N2O
+            vals[0]*self.Electricity_Brazilian_upstream_N2O +
+            vals[1]*self.Diesel_upstream_N2O
             )
         return (
             CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
-            self.Lime_InputsCons_GHG + self.Lime_TD_GHG_Final
+            self.Brazilian_Lime_InputsCons_GHG + self.Lime_TD_GHG_Final
             )
     
     @property
     def CF_Diesel(self):
         '''In g GHG/Btu.'''
-        return (
+        GHG = (
             self.Diesel_upstream_CO2*self.CO2_GWP +
             self.Diesel_upstream_CH4*self.CH4_GWP +
-            self.Diesel_upstream_N2O*self.N2O_GWP +
-            self.CornFarming_DieselCons_GHG
+            self.Diesel_upstream_N2O*self.N2O_GWP
             )
+        if not 'Sugarcane' in self.crop: return GHG+self.CornFarming_DieselCons_GHG
+        return GHG+self.SugarcaneFarming_DieselCons_GHG
     
     @property
     def CF_GB(self):
@@ -793,10 +837,18 @@ class FDCIC:
     @property
     def CF_Electricity(self):
         '''In g GHG/Btu.'''
+        crop = self.crop
+        if 'Brazilian' not in crop:
+            prefix = '_GSfarming' if self.crop == 'Sorghum' else ''
+            return (
+                getattr(self, f'Electricity_upstream_CO2{prefix}')*self.CO2_GWP +
+                getattr(self, f'Electricity_upstream_CH4{prefix}')*self.CH4_GWP +
+                getattr(self, f'Electricity_upstream_N2O{prefix}')*self.N2O_GWP
+                )
         return (
-            self.Electricity_upstream_CO2*self.CO2_GWP +
-            self.Electricity_upstream_CH4*self.CH4_GWP +
-            self.Electricity_upstream_N2O*self.N2O_GWP
+            self.Electricity_Brazilian_upstream_CO2*self.CO2_GWP +
+            self.Electricity_Brazilian_upstream_CH4*self.CH4_GWP +
+            self.Electricity_Brazilian_upstream_N2O*self.N2O_GWP
             )
     
     @property
@@ -814,8 +866,6 @@ class FDCIC:
         crop = 'GS' if crop == 'Sorghum' else crop
         try: return getattr(self, f'Insecticide_{crop}Farming_GHG')
         except AttributeError: return 0
-    
-    #!!! PAUSED HERE AT ADDING THE ADDITIONAL ONES FOR OTHER CROPS
     
     # Corn
     @property

@@ -9,7 +9,51 @@
 
 from thermosteam.units_of_measure import AbsoluteUnitsOfMeasure as auom
 
-__all__ = ('Var',)
+__all__ = ('Inputs', 'Var',)
+
+# %%
+
+class Inputs:
+    '''
+    A general class to store variable values, not intended to be used standalone.
+    '''
+    acronyms = {
+        'AN': 'ammonium nitrate',
+        'AS': 'ammonium sulfate',
+        'CF': 'characterization factor',
+        'bu': 'bushels',
+        'GB': 'gasoline blendstock',
+        'GS': 'grain sorghum',
+        'Lime': 'CaCO3',
+        'LPG': 'liquid petroleum gas',
+        'NA': 'nitric acid',
+        'NG': 'natural gas',
+        'PA': 'phosphoric acid',
+        'RO': 'residual oil',
+        'SA': 'sulfuric acid',
+        'TD': 'transportation & distribution',
+        'UAN': 'urea-ammonium nitrate solution',
+        }
+    
+    parameters = {}
+    
+    def __init__(self):
+        self.reset_variables()
+    
+    def reset_variables(self, variables=[]):
+        '''
+        Reset variable to their default values.
+        '''
+        variables = variables or self.variables
+        for var in self.variables:
+            setattr(self, var.name, var.default_value)
+            
+    @property
+    def variables(self):
+         return self.parameters
+
+
+# %%
 
 class Var:
     '''
