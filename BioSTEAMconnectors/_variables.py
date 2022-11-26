@@ -9,10 +9,10 @@
 
 from thermosteam.units_of_measure import AbsoluteUnitsOfMeasure as auom
 
-__all__ = ('Inputs', 'Var', 'default_inputs',)
+__all__ = ('Variable', 'Variables',)
 
 
-class Var:
+class Variable:
     '''
     A simple class used to represent variable value with unit of measurement.
     
@@ -96,7 +96,6 @@ class Variables:
         'AS': 'ammonium sulfate',
         'bu': 'bushel',
         'CF': 'characterization factor',
-        'bu': 'bushels',
         'cwt': 'hundredweight, or 100 lbs',
         'GB': 'gasoline blendstock',
         'GS': 'grain sorghum',
@@ -119,92 +118,3 @@ class Variables:
         variables = variables or self.variables
         for var in self.variables:
             setattr(self, var.name, var.default_value)
-
-
-# %%
-
-default_inputs = [    
-    Var('Nfertilizer_source', 'Conventional',
-        notes='Can only be "Conventional" (steam methane reforming) or '
-        '"Green" (refer to GREET for the default green ammonia pathway).'),
-    ]
-
-
-class Inputs(Variables):
-    '''A general class to store crop inputs.'''
-
-    def __init__(self, inputs=[]):
-        self.inputs = inputs or default_inputs
-            
-        
-    @property
-    def parameters(self):
-         return {}
-
-    @property
-    def variables(self):
-         return self.inputs
-     
-
-# %%
-
-# =============================================================================
-# Probably not needed, saving as a ref for now
-# =============================================================================
-
-# class RefVar(Var):
-#     '''
-#     Non-independent variables whose value is based on a linked variable.
-#     Note that this class needs to be attached to the same :class:`FDCIC` object
-#     that its reference variable is attached to.
-    
-#     Values and units of this class cannot be changed
-#     (should change the reference object instead),
-#     and unit conversion is disabled.
-    
-#     Parameters
-#     ----------
-#     name : str
-#         Name of the this variable.
-#     ref_name : str
-#         Name of the reference variable.
-#     fdcic : obj
-#         The :class:`FDCIC` object that this variable and its reference variable
-#         are attached to.
-#     factor : int|float
-#         A multiplication factor on top of the value of the reference variable.
-#     notes : str
-#         Additional notes on this variable.
-#     '''
-#     def __init__(self, name, ref_name, fdcic, factor=1, notes=''):
-#         self.name = name
-#         self.ref_name = ref_name
-#         self.fdcic = fdcic
-#         self.factor = factor
-#         self.notes = notes
-
-#     @property
-#     def enable_unit_conversion(self):
-#         return False
-
-#     @property
-#     def fdcic(self):
-#         fdcic = self._fdcic
-#         if not fdcic:
-#             raise AttributeError(f'Variable {self.name} has not been assigned a `FDCIC` class.')
-#         return fdcic
-#     @fdcic.setter
-#     def fdcic(self, i):
-#         self._fdcic = i
-    
-#     @property
-#     def ref(self):
-#         return getattr(self.fdcic, self.ref_name)
-    
-#     @property
-#     def value(self):
-#         return self.ref.value
-
-#     @property
-#     def unit(self):
-#         return self.ref.unit
