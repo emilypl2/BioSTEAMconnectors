@@ -11,8 +11,8 @@ from . import _variables
 from ._variables import *
 from . import _default_parameters
 from ._default_parameters import *
-from . import _default_values
-from ._default_values import *
+from . import _default_inputs
+from ._default_inputs import *
 
 from . import _inputs
 from . import _fdcic
@@ -23,7 +23,7 @@ from ._fdcic import *
 __all__ = (
     *_variables.__all__,
     *_default_parameters.__all__,
-    *_default_values.__all__,
+    *_default_inputs.__all__,
     *_inputs.__all__,
     *_fdcic.__all__,
     )
