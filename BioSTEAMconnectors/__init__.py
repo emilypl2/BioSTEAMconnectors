@@ -8,14 +8,15 @@
 # for license details.
 
 from . import _variables
+from ._variables import *
 from . import _default_parameters
+from ._default_parameters import *
 from . import _default_values
+from ._default_values import *
+
 from . import _inputs
 from . import _fdcic
 
-from ._variables import *
-from ._default_parameters import *
-from ._default_values import *
 from ._inputs import *
 from ._fdcic import *
 
