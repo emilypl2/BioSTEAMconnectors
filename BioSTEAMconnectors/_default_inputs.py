@@ -82,7 +82,7 @@ default_corn_inputs = [
             '"4R (Right time, Right place, Right form, and Right rate)", '
             'or "Enhanced Efficiency Fertilizer".'),
     # SOC
-    Variable('SOC_emission', 0.5, 'kg C/ha/yr',
+    Variable('SOC_emission', 0.476628350205226, 'kg C/ha/yr', # Champaign, IL
         notes='Positive is emission, negative is sequestration.'),
     # Ethanol yield, default from GREET pathway
     Variable('Ethanol_yield', 2.88220583817581, 'gal/bu',

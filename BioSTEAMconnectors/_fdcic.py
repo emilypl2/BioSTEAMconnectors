@@ -150,6 +150,7 @@ class FDCIC(Variables):
             getattr(self, f'{prefix}Ammonia_Prod_HydrogenIn'),
             getattr(self, f'{prefix}Ammonia_Prod_NitrogenIn'),
             getattr(self, f'{prefix}Ammonia_InputsCons_GHG'),
+            getattr(self, f'{prefix}Ammonia_Process_GHG'),
             ]
         NG, Elec = self._get_NG_Elec_source()
         CO2 = (
@@ -170,7 +171,7 @@ class FDCIC(Variables):
             vals[2]*self.H2_upstream_N2O +
             vals[3]*self.Cryogenic_Nitrogen_for_Ammonia_N2O
             )
-        return CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP
+        return CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP + vals[-2] + vals[-1]
     
     @property
     def CF_Ammonia_Final(self):
@@ -325,7 +326,7 @@ class FDCIC(Variables):
         return (
             CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
             vals[2]*self.CF_Ammonia_Intermediate +
-            self.MAP_InputsCons_GHG + self.MAP_TD_GHG_Final
+            vals[-2] + vals[-1]
             )
     
     @property
@@ -462,38 +463,35 @@ class FDCIC(Variables):
             self.Diesel_upstream_CO2*self.CO2_GWP +
             self.Diesel_upstream_CH4*self.CH4_GWP +
             self.Diesel_upstream_N2O*self.N2O_GWP
-            )
+            ) / 1e6 # from mmBtu to Btu
         if not 'Sugarcane' in self.crop: return GHG+self.CornFarming_DieselCons_GHG
         return GHG+self.SugarcaneFarming_DieselCons_GHG
     
     @property
     def CF_GB(self):
         '''In g GHG/Btu.'''
-        return (
+        return self.CornFarming_GBCons_GHG + 1/1e6*( # from mmBtu to Btu
             self.GB_upstream_CO2*self.CO2_GWP +
             self.GB_upstream_CH4*self.CH4_GWP +
-            self.GB_upstream_N2O*self.N2O_GWP +
-            self.CornFarming_GBCons_GHG
+            self.GB_upstream_N2O*self.N2O_GWP
             )
     
     @property
     def CF_NG(self):
         '''In g GHG/Btu.'''
-        return (
+        return self.CornFarming_NGCons_GHG + 1/1e6*( # from mmBtu to Btu
             self.NG_upstream_CO2_for_StationaryFuel*self.CO2_GWP +
             self.NG_upstream_CH4_for_StationaryFuel*self.CH4_GWP +
-            self.NG_upstream_N2O_for_StationaryFuel*self.N2O_GWP +
-            self.CornFarming_NGCons_GHG
+            self.NG_upstream_N2O_for_StationaryFuel*self.N2O_GWP
             )
-    
+
     @property
     def CF_LPG(self):
         '''In g GHG/Btu.'''
-        return (
+        return self.CornFarming_LPGCons_GHG + 1/1e6*( # from mmBtu to Btu
             self.LPG_upstream_CO2*self.CO2_GWP +
             self.LPG_upstream_CH4*self.CH4_GWP +
-            self.LPG_upstream_N2O*self.N2O_GWP +
-            self.CornFarming_LPGCons_GHG
+            self.LPG_upstream_N2O*self.N2O_GWP
             )
     
     @property
@@ -502,16 +500,18 @@ class FDCIC(Variables):
         crop = self.crop
         if 'Brazilian' not in crop:
             prefix = '_GSfarming' if self.crop == 'Sorghum' else ''
-            return (
+            GHG = (
                 getattr(self, f'Electricity_upstream_CO2{prefix}')*self.CO2_GWP +
                 getattr(self, f'Electricity_upstream_CH4{prefix}')*self.CH4_GWP +
                 getattr(self, f'Electricity_upstream_N2O{prefix}')*self.N2O_GWP
                 )
-        return (
-            self.Electricity_Brazilian_upstream_CO2*self.CO2_GWP +
-            self.Electricity_Brazilian_upstream_CH4*self.CH4_GWP +
-            self.Electricity_Brazilian_upstream_N2O*self.N2O_GWP
-            )
+        else:
+            GHG = (
+                self.Electricity_Brazilian_upstream_CO2*self.CO2_GWP +
+                self.Electricity_Brazilian_upstream_CH4*self.CH4_GWP +
+                self.Electricity_Brazilian_upstream_N2O*self.N2O_GWP
+                )
+        return GHG / 1e6 # from mmBtu to Btu
     
     @property
     def CF_Herbicide(self):
@@ -870,11 +870,11 @@ class FDCIC(Variables):
             self.Urea_Farming +
             self.AN_Farming +
             self.AS_Farming +
-            self.UAN_Farming
+            self.UAN_Farming +
+            self.MAP_Farming_asNfert +
+            self.DAP_Farming_asNfert
             )
-
         if crop == 'Corn':
-            Nfert += self.MAP_CornFarming_asNfert_val + self.DAP_CornFarming_asNfert_val
             Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_corn
             Nres = self.Cornfarming_Ninbiomass_residue * self.Cornfarming_biomass_N2O_factor
         else:
@@ -992,7 +992,7 @@ class FDCIC(Variables):
         Feedstock carbon intensity, does not include soil organic carbon change,
         same as `FDCIC.CI`, in g CO2e/`FDCIC.GHG_functional_unit`.
         '''
-        return self.GHG_table.iloc[-2].value
+        return self.GHG_table.iloc[-2]
     CI_wo_SOC = CI
     
     @property
@@ -1001,4 +1001,4 @@ class FDCIC(Variables):
         Feedstock carbon intensity with soil organic carbon change,
         in g CO2e/`FDCIC.GHG_functional_unit`.
         '''
-        return self.GHG_table.iloc[-2].value
+        return self.GHG_table.iloc[-1]
