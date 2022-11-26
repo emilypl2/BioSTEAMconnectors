@@ -7,7 +7,7 @@
 # github.com/BioSTEAMDevelopmentGroup/biosteam/blob/master/LICENSE.txt
 # for license details.
 
-from . import default_inputs, Inputs, Results, Var
+from . import default_inputs, Inputs, Var
 
 __all__ = ('default_rice_inputs',)
 
@@ -48,9 +48,3 @@ class RiceInputs(Inputs):
     @Nfertilizer_source_Rice.setter
     def Nfertilizer_source_Rice(self, i):
         self.Nfertilizer_source = i
-
-
-class RiceResults(Results):
-    '''Result calculation for rice.'''
-    
-    
