@@ -18,10 +18,7 @@ import pandas as pd
 from math import e
 from . import default_parameters, Variable, Variables
 
-__all__ = ('FDCIC', 'Variable', 'Variables')
-
-
-
+__all__ = ('FDCIC',)
 
 
 # %%
