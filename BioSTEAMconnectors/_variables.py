@@ -45,7 +45,7 @@ class Variable:
     >>> Diesel_LHV('Btu/m3') # doctest +ELLIPSIS
     33932900.1254...
     '''
-    def __init__(self, name, default_value, default_unit, notes='', enable_unit_conversion=False):
+    def __init__(self, name, default_value, default_unit='', notes='', enable_unit_conversion=False):
         self.name = name
         self._default_value = default_value
         self._default_unit = default_unit
