@@ -64,7 +64,7 @@ class CornInputs(Inputs):
         
     @property
     def Yield_TS(self):
-        '''Same as `CornYield_TS`, in `CornInputs.GHG_functional_unit`.'''
+        '''Same as `CornYield_TS`, in `CornInputs.GHG_functional_unit`/acre.'''
         return self.CornYield_TS
     @Yield_TS.setter
     def Yield_TS(self, i):
@@ -98,7 +98,7 @@ class RiceInputs(Inputs):
         
     @property
     def Yield_TS(self):
-        '''Same as `RiceYield_TS`, in `RiceInputs.GHG_functional_unit`.'''
+        '''Same as `RiceYield_TS`, in `RiceInputs.GHG_functional_unit`/acre.'''
         return self.RiceYield_TS
     @Yield_TS.setter
     def Yield_TS(self, i):

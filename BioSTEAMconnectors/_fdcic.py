@@ -41,30 +41,35 @@ class FDCIC(Variables):
         self.reset_variables()
 
     @property
-    def crop(self):
-        '''Name of the crop of interest.'''
-        return self.crop_inputs.crop
-    
-    @property
-    def GHG_functional_unit(self):
-        '''Functional unit of the GHG results for the crop of interest.'''
-        return self.crop_inputs.GHG_functional_unit
-    
-    @property
     def inputs(self):
         '''Crop-specific inputs.'''
         return self.crop_inputs.inputs
 
     @property
+    def crop(self):
+        '''Name of the crop of interest.'''
+        return self.crop_inputs.crop
+
+    @property
+    def GHG_functional_unit(self):
+        '''Functional unit of the GHG results for the crop of interest.'''
+        return self.crop_inputs.GHG_functional_unit
+
+    @property
+    def Yield_TS(self):
+        '''Total yield of the crop, in `FDCIC.GHG_functional_unit`/acre.'''
+        return self.crop_inputs.Yield_TS
+
+    @property
     def variables(self):
         if hasattr(self, '_variables'):
-            dct = self._variables
-            dct.empty()
-            dct.update(self.parameters)
+            lst = self._variables
+            lst.clear()
+            lst.extend(self.parameters)
         else:
-            self._variables = dct = self.parameters.copy()
-        dct.update(self.crop_inputs.inputs)
-        return dct
+            self._variables = lst = self.parameters.copy()
+        lst.extend(self.inputs)
+        return lst
     
     # Universal Aliases
     @property
@@ -130,7 +135,7 @@ class FDCIC(Variables):
     
     # Characterization factors
     def _get_NG_Elec_source(self):
-        return 'Ammonia', '' if self.crop != 'BrazilianSugarcane' else 'StationaryFuel', 'Brazilian_'
+        return ('Ammonia', '') if self.crop!='BrazilianSugarcane' else ('StationaryFuel', 'Brazilian_')
     
     @property
     def _CF_Ammonia_shared(self):
@@ -528,77 +533,77 @@ class FDCIC(Variables):
     @property
     def Diesel_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Diesel_{self.crop}Farming_val', 0)*self.Diesel_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Diesel_{self.crop}Farming_val', 0)*self.Diesel_LHV/self.Yield_TS
     
     @property
     def Gasoline_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Gasoline_{self.crop}Farming_val', 0)*self.Gasoline_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Gasoline_{self.crop}Farming_val', 0)*self.Gasoline_LHV/self.Yield_TS
     
     @property
     def NG_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'NG_{self.crop}Farming_val', 0)*self.NG_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'NG_{self.crop}Farming_val', 0)*self.NG_LHV/self.Yield_TS
 
     @property
     def LPG_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'LPG_{self.crop}Farming_val', 0)*self.LPG_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'LPG_{self.crop}Farming_val', 0)*self.LPG_LHV/self.Yield_TS
     
     @property
     def Electricity_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Electricity_{self.crop}Farming_val', 0)*self.Electricity_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Electricity_{self.crop}Farming_val', 0)*self.Electricity_LHV/self.Yield_TS
     
     @property
     def Ammonia_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'Ammonia_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'Ammonia_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def Urea_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'Urea_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'Urea_{self.crop}Farming_val')*self.g_to_lb/self.Yield_TS
     
     @property
     def AN_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'AN_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'AN_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def AS_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'AS_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'AS_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def UAN_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'UAN_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'UAN_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def MAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def DAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def MAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def DAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def K2O_Farming(self):
         '''In g K2O/bu.'''
-        return getattr(self, f'K2O_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'K2O_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def CaCO3_Farming(self):
@@ -607,18 +612,18 @@ class FDCIC(Variables):
         except:
             try: lime = getattr(self, f'Lime_{self.crop}Farming_val')
             except: lime = 0
-        return lime*self.g_to_lb/self.crop_inputs.Yield_TS
+        return lime*self.g_to_lb/self.Yield_TS
     Lime_Farming = CaCO3_Farming
     
     @property
     def HerbicideUse_Farming(self):
         '''In g/bu.'''
-        return getattr(self, f'HerbicideUse_{self.crop}Farming_val', 0)/self.crop_inputs.Yield_TS
+        return getattr(self, f'HerbicideUse_{self.crop}Farming_val', 0)/self.Yield_TS
     
     @property
     def InsecticideUse_Farming(self):
         '''In g/bu.'''
-        return getattr(self, f'InsecticideUse_{self.crop}Farming_val', 0)/self.crop_inputs.Yield_TS
+        return getattr(self, f'InsecticideUse_{self.crop}Farming_val', 0)/self.Yield_TS
 
     @property
     def Herbicide_Farming_CO2(self):
@@ -870,7 +875,7 @@ class FDCIC(Variables):
 
         if crop == 'Corn':
             Nfert += self.MAP_CornFarming_asNfert_val + self.DAP_CornFarming_asNfert_val
-            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_corn
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_corn
             Nres = self.Cornfarming_Ninbiomass_residue * self.Cornfarming_biomass_N2O_factor
         else:
             #!!! TODO

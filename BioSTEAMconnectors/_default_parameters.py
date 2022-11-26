@@ -37,7 +37,7 @@ default_parameters = [
     Variable('g_per_ton', 907184.74, 'g/ton'),
     Variable('NG_density', 22, 'g/ft3'),
     # Emission factor from synthetic nitrogen fertilizer
-    Variable('Nfertilizer_N2O_factor_US_corn', 0.01325, ''),
+    Variable('Nfertilizer_N2O_factor_US', 0.01325, ''),
     # N content in Nitrogen fertilizer
     Variable('Ammonia_N', 0.824, 'g N/g mass'), # 14/17
     Variable('Urea_N', 0.467, 'g N/g mass'), # 28/60
@@ -187,7 +187,7 @@ default_parameters.extend([
     # Sulfuric acid for AS （ammonium sulfate)
     Variable('SA_Upstream_CO2', 37876.883582726, 'g CO2/ton'),
     Variable('SA_Upstream_CH4', 58.4724216450816, 'g CH4/ton'),
-    Variable('SA_Upstream_N3O', 0.917706163476711, 'g N2O/ton'),
+    Variable('SA_Upstream_N2O', 0.917706163476711, 'g N2O/ton'),
     # Phosphic acid (P2O5) for MAP/DAP
     Variable('PA_Upstream_CO2', 1223301.07996423, 'g CO2/ton',
              notes='instead of using the value for P2O5 directly from GREET, '
@@ -207,13 +207,13 @@ default_parameters.extend([
     Variable('RO_upstream_CH4', 102.151248520798, 'g CH4/mmBtu'),
     Variable('RO_upstream_N2O', 0.17225341835045, 'g N2O/mmBtu'),
     # Coal as fuel
-    Variable('NG_upstream_CO2_for_Ammonia', 1620.01544142514, 'g CO2/mmBtu'),
-    Variable('NG_upstream_CH4_for_Ammonia', 147.842989765332, 'g CH4/mmBtu'),
-    Variable('NG_upstream_N2O_for_Ammonia', 0.0330322808747223, 'g N2O/mmBtu'),
+    Variable('Coal_upstream_CO2', 1620.01544142514, 'g CO2/mmBtu'),
+    Variable('Coal_upstream_CH4', 147.842989765332, 'g CH4/mmBtu'),
+    Variable('Coal_upstream_N2O', 0.0330322808747223, 'g N2O/mmBtu'),
     # Gasoline blendstock as fuel
     Variable('GB_upstream_CO2', 17280.008954548, 'g CO2/mmBtu'),
     Variable('GB_upstream_CH4', 117.618105305705, 'g CH4/mmBtu'),
-    Variable('GB_upstream_CO2', 0.303658433025717, 'g N2O/mmBtu'),
+    Variable('GB_upstream_N2O', 0.303658433025717, 'g N2O/mmBtu'),
     # H2 as ammonia feedstock
     Variable('H2_upstream_CO2', 0, 'g CO2/ton'),
     Variable('H2_upstream_CH4', 0, 'g CH4/ton'),
@@ -279,10 +279,15 @@ default_parameters.extend([
     Variable('AS_TD_CO2_Final', 43714.8666448198, 'g CO2/ton'),
     Variable('AS_TD_GHG_Final', 45384.9329334561, 'g CO2/ton'),
     # Urea-ammonium nitrate solution
-    Variable('UAN_InputsCons_CO2', 16844.6928255856, 'g CO2/ton'),
-    Variable('UAN_InputsCons_GHG', 16896.2607878805, 'g CO2/ton'),
-    Variable('UAN_TD_CO2_Final', 43714.8666448198, 'g CO2/ton'),
-    Variable('UAN_TD_GHG_Final', 45384.9329334561, 'g CO2/ton'),
+    Variable('UAN_InputsCons_CO2', 8167.123794, 'g CO2/ton'),
+    Variable('UAN_InputsCons_GHG', 8192.126443, 'g CO2/ton'),
+    Variable('UAN_TD_CO2_Final', 279566.541, 'g CO2/ton'),
+    Variable('UAN_TD_GHG_Final', 290842.4787, 'g CO2/ton'),
+    # MAP
+    Variable('MAP_InputsCons_CO2', 16844.6928255856, 'g CO2/ton'),
+    Variable('MAP_InputsCons_GHG', 16896.2607878805, 'g CO2/ton'),
+    Variable('MAP_TD_CO2_Final', 43714.8666448198, 'g CO2/ton'),
+    Variable('MAP_TD_GHG_Final', 45384.9329334561, 'g CO2/ton'),
     # DAP
     Variable('DAP_InputsCons_CO2', 13782.0214027518, 'g CO2/ton'),
     Variable('DAP_InputsCons_GHG', 13824.2133719022, 'g CO2/ton'),
