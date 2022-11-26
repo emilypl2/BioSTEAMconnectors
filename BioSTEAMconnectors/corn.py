@@ -108,13 +108,21 @@ class CornInputs(Inputs):
         
     @property
     def Yield_TS(self):
-        '''Same as `CornYield_TS`.'''
+        '''Same as `CornYield_TS`, in `FDCIC.GHG_functional_unit`.'''
         return self.CornYield_TS
     @Yield_TS.setter
     def Yield_TS(self, i):
         self.CornYield_TS = i
 
-#!!! PAUSED HERE, NEED TO DROP THE CROP TYPE WHEN ADDING FORMULA
+#!!! PAUSED HERE, MIGHT NOT BE NEEDED
 class CornResults(Results):
     '''Result calculation for corn.'''
     
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_corn_inputs
+        self.reset_variables()
+
+    @property
+    def GHG_functional_unit(self):
+        '''The funcitonal unit for GHG results (also unit for yield).'''
+        return 'bu'

@@ -91,12 +91,16 @@ class Variables:
     (i.e., only its subclasses should be used).
     '''
     acronyms = {
+        'ac': 'acre',
         'AN': 'ammonium nitrate',
         'AS': 'ammonium sulfate',
+        'bu': 'bushel',
         'CF': 'characterization factor',
         'bu': 'bushels',
+        'cwt': 'hundredweight, or 100 lbs',
         'GB': 'gasoline blendstock',
         'GS': 'grain sorghum',
+        'ha': 'hectare',
         'Lime': 'CaCO3',
         'LPG': 'liquid petroleum gas',
         'NA': 'nitric acid',

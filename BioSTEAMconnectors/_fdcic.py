@@ -9,10 +9,12 @@
 
 '''
 TODO: could consider using openpyxl to get the cell range values from FDCIC/GREET.
+Note that some cells have alternative names in FDCIC
 
 Note: Canadian corn not included at this stage.
 '''
 
+import pandas as pd
 from math import e
 from . import Variables, Var
 
@@ -39,9 +41,9 @@ default_parameters = [
     Var('Btu_per_MJ', 947.817, 'Btu/MJ'),
     Var('tonne_per_lb', 0.000453593, 'tonne/lb'),
     Var('kg_per_lb', 0.4535925, 'kg/lb'),
-    Var('lb_per_bu_CanCorn', 56, 'lbs/bushel'),
+    Var('lb_per_bu_CanCorn', 56, 'lb/bu'),
     Var('L_per_gal', 3.78541, 'L/gal'),
-    Var('acre_per_hectare', 2.47105, 'acre/hectare'),
+    Var('acre_per_hectare', 2.47105, 'ac/ha'),
     Var('g_per_kg', 1000, 'g/kg'),
     Var('kJ_per_MJ', 1000, 'kJ/MJ'),
     Var('kJ_per_kWh', 3600, 'kJ/kWh'),
@@ -49,10 +51,7 @@ default_parameters = [
     Var('g_per_ton', 907184.74, 'g/ton'),
     Var('NG_density', 22, 'g/ft3'),
     # Emission factor from synthetic nitrogen fertilizer
-    Var('Nfertilizer_N2O_factor_US', 0.01325, ''),
-    # Corn: N content of above and below ground biomass and N2O Emission
-    Var('Cornfarming_Ninbiomass_residue', 141.6, 'unknown'),
-    Var('Cornfarming_biomass_N2O_factor', 0.01264, ''),
+    Var('Nfertilizer_N2O_factor_US_corn', 0.01325, ''),
     # N content in Nitrogen fertilizer
     Var('Ammonia_N', 0.824, 'g N/g mass'), # 14/17
     Var('Urea_N', 0.467, 'g N/g mass'), # 28/60
@@ -73,24 +72,27 @@ default_parameters = [
     # Lime acidified
     Var('CO2_content_in_CaCO3', 0.44, 'g CO2/g CaCO3'), # 44/100
     Var('Percent_Lime_Acidified', 0.492, 'fraction'),
+    # Corn: N content of above and below ground biomass and N2O Emission
+    Var('Cornfarming_Ninbiomass_residue', 141.6, 'g/bu'),
+    Var('Cornfarming_biomass_N2O_factor', 0.01264, 'fraction'),
     # Soybean: N content of above and below ground biomass and N2O Emission
-    Var('Soybeanfarming_Ninbiomass_residue', 557, notes='N content of above and below ground biomass: grams'),
-    Var('Soybeanfarming_Nfixation_N2O_factor', 7.3, notes='N2O emissions from N fixation: grams N2O'),
-    Var('Soybeanfarming_biomass_N2O_factor', 0.01264, notes='N2O emissions: N in N2O as % of N in soybean biomass'),
-    Var('Nfertilizer_N2O_factor_US_soybean', 0.01374, notes='N2O Emissions: N fertilizer in soybean field'),
-    # GS (grain sorghum): N content of above and below ground biomass and N2O Emission
-    Var('GSfarming_Ninbiomass_residue', 149, notes='N content of above and below ground biomass: grams'),
-    Var('GSfarming_biomass_N2O_factor', 0.01264, notes='N2O Emissions: N in N2O as % of N in grain sorghum biomass'),
-    Var('Nfertilizer_N2O_factor_US_sorghum', 0.01374, notes='N2O Emissions: N fertilizer in grain sorghum field'),
+    Var('Soybeanfarming_Ninbiomass_residue', 557, 'g/bu'),
+    Var('Soybeanfarming_Nfixation_N2O_factor', 7.3, 'fraction'),
+    Var('Soybeanfarming_biomass_N2O_factor', 0.01264, 'fraction'),
+    Var('Nfertilizer_N2O_factor_US_soybean', 0.01374, 'fraction'),
+    # GS: N content of above and below ground biomass and N2O Emission
+    Var('GSfarming_Ninbiomass_residue', 149),
+    Var('GSfarming_biomass_N2O_factor', 0.01264, 'fraction'),
+    Var('Nfertilizer_N2O_factor_US_sorghum', 0.01374, 'fraction'),
     # Sugarcane: N content of above and below ground biomass and N2O Emission
-    Var('Sugarcanefarming_Ninbiomass_residue', 445.2, notes='N content of above and below ground biomass: grams'),
-    Var('Sugarcane_NinVinasse', 205.2, notes='N content of above and below ground biomass: grams'),
-    Var('Sugarcane_NinFilteredcake', 35.8783008036739, notes='N content of filtered cake as soil amendment'),
-    Var('Sugarcanefarming_biomass_N2O_factor', 0.01264, notes='N2O Emissions: N in N2O as % of N in biomass'),
-    Var('Nfertilizer_N2O_factor_Brazil', 0.0122, notes='N2O Emissions: N fertilizer in Brazillian sugarcane fields'),
+    Var('Sugarcanefarming_Ninbiomass_residue', 445.2, 'g/tonne'),
+    Var('Sugarcane_NinVinasse', 205.2, 'g/tonne'),
+    Var('Sugarcane_NinFilteredcake', 35.8783008036739, 'g/tonne'),
+    Var('Sugarcanefarming_biomass_N2O_factor', 0.01264, 'fraction'),
+    Var('Nfertilizer_N2O_factor_Brazil', 0.0122, 'fraction'),
     # Rice: N content of above and below ground biomass and N2O Emission
-    Var('Ricefarming_Ninbiomass_residue', 535.140584128, notes='N content of above and below ground biomass: gram N/cwt rice '),
-    Var('Ricefarming_biomass_N2O_factor', 0.01264, notes='N2O Emissions: N in N2O as % of N in rice biomass'),
+    Var('Ricefarming_Ninbiomass_residue', 535.140584128, 'g/cwt'),
+    Var('Ricefarming_biomass_N2O_factor', 0.01264, 'fraction'),
     Var('EFc', 0.65, 'kg CH4/ha/day'),
     Var('Rice_cultivation_period', 139, 'day'),
     Var('Rice_straw_application_rate', 4, 'Mg/ha'),
@@ -400,6 +402,11 @@ class FDCIC(Variables):
         return self.crop_inputs.crop
     
     @property
+    def GHG_functional_unit(self):
+        '''Functional unit of the GHG results for the crop of interest.'''
+        return self.crop_inputs.GHG_functional_unit
+    
+    @property
     def inputs(self):
         '''Crop-specific inputs.'''
         return self.crop_inputs.inputs
@@ -445,6 +452,7 @@ class FDCIC(Variables):
     def ac_per_ha(self):
         '''Same as `acre_per_hectare`.'''
         return self.acre_per_hectare
+    acre2hectare = ac_per_ha
 
     @property
     def kg2g(self):
@@ -620,7 +628,7 @@ class FDCIC(Variables):
         vals = [
             self.UAN_Prod_NGIn,
             self.UAN_Prod_ElecIn,
-            self.UAN_Prod_UreaIns,
+            self.UAN_Prod_UreaIn,
             self.UAN_Prod_ANIn,
             ]
         CO2 = (
@@ -872,152 +880,137 @@ class FDCIC(Variables):
         try: return getattr(self, f'Insecticide_{crop}Farming_GHG')
         except AttributeError: return 0
     
-    #!!! Figure out ways to batch-adding properties
-    # Corn
-    @property
-    def Nitrogen_balance_assumed(self):
-        '''Same as `N_balance_assumed`.'''
-        return self.N_balance_assumed
-    
-    
-    @property
-    def Nfertilizer_direct_N2O_factor_US(self):
-        zone = self.crop_inputs.Climate_zone
-        if zone in ('No consideration', 'NA', 'Wet or Moist'): return 0.01
-        elif zone == 'Dry': return 0.005
-        raise ValueError(f'{zone} is invalid for `crop_inputs.Climate_zone`, '
-                         'check `crop_inputs.Climate_zone.notes` for valid values.')
-    Nfertilizer_direct_N2O_factor_US_corn = Nfertilizer_direct_N2O_factor_US
-    
-    @property
-    def Nfertilizer_indirect_N2O_factor_US(self):
-        zone = self.crop_inputs.Climate_zone
-        if zone in ('No consideration', 'NA'): return 0.00374
-        elif zone == 'Wet or Moist': return 0.00418
-        elif zone == 'Dry': return 0.00055
-    Nfertilizer_indirect_N2O_factor_US_corn = Nfertilizer_indirect_N2O_factor_US
-    
-    @property
-    def Nfertilizer_N2O_factor_US(self):
-        return self.Nfertilizer_direct_N2O_factor_US+self.Nfertilizer_indirect_N2O_factor_US
-    Nfertilizer_N2O_factor_US_corn = Nfertilizer_N2O_factor_US
-    
-    @property
-    def Nfertilizer_direct_N2O_4R_US_corn(self):
-        '''N2O-N emissions per bushel of corn under 4R practice, [g GHG/bu].'''
-        return e**(0.339+0.0047*self.N_balance_assumed)
-    
+    # Energy and chemcial usage
     @property
     def Diesel_Farming(self):
         '''In Btu/bu.'''
-        # return self.Diesel_CornFarming_val*self.Diesel_LHV/self.CornYield_TS
-        return getattr(self, f'Diesel_{self.crop}Farming_val')*self.Diesel_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Diesel_{self.crop}Farming_val', 0)*self.Diesel_LHV/self.crop_inputs.Yield_TS
     
     @property
     def Gasoline_Farming(self):
         '''In Btu/bu.'''
-        # return self.Gasoline_CornFarming_val*self.Gasoline_LHV/self.CornYield_TS
-        return getattr(self, f'Gasoline_{self.crop}Farming_val')*self.Gasoline_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Gasoline_{self.crop}Farming_val', 0)*self.Gasoline_LHV/self.crop_inputs.Yield_TS
     
     @property
     def NG_Farming(self):
         '''In Btu/bu.'''
-        # return self.NG_CornFarming_val*self.NG_LHV/self.CornYield_TS
-        return getattr(self, f'NG_{self.crop}Farming_val')*self.NG_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'NG_{self.crop}Farming_val', 0)*self.NG_LHV/self.crop_inputs.Yield_TS
 
     @property
     def LPG_Farming(self):
         '''In Btu/bu.'''
-        # return self.LPG_CornFarming_val*self.LPG_LHV/self.CornYield_TS
-        return getattr(self, f'LPG_{self.crop}Farming_val')*self.LPG_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'LPG_{self.crop}Farming_val', 0)*self.LPG_LHV/self.crop_inputs.Yield_TS
     
     @property
     def Electricity_Farming(self):
         '''In Btu/bu.'''
-        # return self.Electricity_CornFarming_val*self.Electricity_LHV/self.CornYield_TS
-        return getattr(self, f'Electricity_{self.crop}Farming_val')*self.Electricity_LHV/self.crop_inputs.Yield_TS
+        return getattr(self, f'Electricity_{self.crop}Farming_val', 0)*self.Electricity_LHV/self.crop_inputs.Yield_TS
     
     @property
     def Ammonia_Farming(self):
         '''In g N/bu.'''
-        # return self.Ammonia_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'Ammonia_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'Ammonia_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
     def Urea_Farming(self):
         '''In g N/bu.'''
-        # return self.Urea_CornFarming_val*self.g_to_lb/self.CornYield_TS
         return getattr(self, f'Urea_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
     def AN_Farming(self):
         '''In g N/bu.'''
-        # return self.AN_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'AN_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'AN_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def AS_Farming(self):
         '''In g N/bu.'''
-        # return self.AS_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'AS_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'AS_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def UAN_Farming(self):
         '''In g N/bu.'''
-        # return self.UAN_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'UAN_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'UAN_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def MAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        # return self.MAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def DAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        # return self.DAP_CornFarming_asNfert_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def MAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        # return self.MAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
     def DAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        # return self.DAP_CornFarming_asPfert_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
 
     @property
     def K2O_Farming(self):
         '''In g K2O/bu.'''
-        # return self.K2O_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'K2O_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        return getattr(self, f'K2O_{self.crop}Farming_val', 0)*self.g_to_lb/self.crop_inputs.Yield_TS
     
     @property
     def CaCO3_Farming(self):
         '''In g/bu.'''
-        # return self.CaCO3_CornFarming_val*self.g_to_lb/self.CornYield_TS
-        return getattr(self, f'CaCO3_{self.crop}Farming_val')*self.g_to_lb/self.crop_inputs.Yield_TS
+        try: lime = getattr(self, f'CaCO3_{self.crop}Farming_val')
+        except:
+            try: lime = getattr(self, f'Lime_{self.crop}Farming_val')
+            except: lime = 0
+        return lime*self.g_to_lb/self.crop_inputs.Yield_TS
+    Lime_Farming = CaCO3_Farming
     
     @property
     def HerbicideUse_Farming(self):
         '''In g/bu.'''
-        # return self.HerbicideUse_CornFarming_val/self.CornYield_TS
-        return getattr(self, f'HerbicideUse_{self.crop}Farming_val')/self.crop_inputs.Yield_TS
+        return getattr(self, f'HerbicideUse_{self.crop}Farming_val', 0)/self.crop_inputs.Yield_TS
     
     @property
     def InsecticideUse_Farming(self):
         '''In g/bu.'''
-        # return self.InsecticideUse_CornFarming_val/self.CornYield_TS
-        return getattr(self, f'InsecticideUse_{self.crop}Farming_val')/self.crop_inputs.Yield_TS
+        return getattr(self, f'InsecticideUse_{self.crop}Farming_val', 0)/self.crop_inputs.Yield_TS
 
     @property
+    def Herbicide_Farming_CO2(self):
+        '''In g CO2/ton.'''
+        crop = self.crop
+        # Rice has the same value as corn
+        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
+        return getattr(self, f'Herbicide_{self.crop}Farming_CO2', 0)
+    
+    @property
+    def Herbicide_Farming_GHG(self):
+        '''In g GHG/ton.'''
+        crop = self.crop
+        # Rice has the same value as corn
+        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
+        return getattr(self, f'Herbicide_{self.crop}Farming_GHG', 0)
+    
+    @property
+    def Insecticide_Farming_CO2(self):
+        '''In g CO2/ton.'''
+        crop = self.crop
+        # Rice has the same value as corn
+        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
+        return getattr(self, f'Insecticide_{self.crop}Farming_CO2', 0)
+    
+    @property
+    def Insecticide_Farming_GHG(self):
+        '''In g GHG/ton.'''
+        crop = self.crop
+        # Rice has the same value as corn
+        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
+        return getattr(self, f'Insecticide_{self.crop}Farming_GHG', 0)
+    
+    @property
     def Diesel_RyeCCFarming(self):
-        '''In Btu/bu.'''
+        '''In Btu per `FDCIC.GHG_functional_unit`.'''
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
         elif CC_Choice == 'Cover crop': return self.Diesel_RyeCCFarming_val/self.Yield_TS
@@ -1026,7 +1019,7 @@ class FDCIC(Variables):
     
     @property
     def HerbicideUse_RyeCCFarming(self):
-        '''In g/bu.'''
+        '''In g per `FDCIC.GHG_functional_unit`.'''
         CC_Choice = self.CC_Choice
         if CC_Choice == 'No cover crop': return 0
         elif CC_Choice == 'Cover crop': return self.HerbicideUse_RyeCCFarming_val/self.Yield_TS
@@ -1040,7 +1033,7 @@ class FDCIC(Variables):
     
     @property
     def Manure_N_inputs_Soil(self):
-        '''In g N/bu.'''
+        '''In g N per `FDCIC.GHG_functional_unit`.'''
         Manure_Choice = self.Manure_Choice
         if Manure_Choice == 'No manure': return 0
         elif Manure_Choice == 'Manure':
@@ -1049,20 +1042,20 @@ class FDCIC(Variables):
                 self.Manure_AppRatio_Dairy*self.Dairy_manure_N +
                 self.Manure_AppRatio_Cattle*self.Cattle_manure_N +
                 self.Manure_AppRatio_Chicken*self.Chicken_manure_N
-                ) / self.CornYield_TS
+                ) / self.Yield_TS
         raise ValueError(f'{Manure_Choice} is invalid for `crop_inputs.Manure_Choice`, '
                          'check `crop_inputs.Manure_Choice.notes` for valid values.') 
     
     @property
     def Diesel_ManureApplication(self):
-        '''In g Btu/bu.'''
+        '''In g Btu per `FDCIC.GHG_functional_unit`.'''
         Manure_Choice = self.Manure_Choice
         if Manure_Choice == 'No manure': return 0
-        elif Manure_Choice == 'Manure': return self.Diesel_ManureApplication / self.CornYield_TS
-    
+        elif Manure_Choice == 'Manure': return self.Diesel_ManureApplication / self.Yield_TS
+
     @property
     def Diesel_ManureTransportation(self):
-        '''In g Btu/bu.'''
+        '''In g Btu per `FDCIC.GHG_functional_unit`.'''
         Manure_Choice = self.Manure_Choice
         if Manure_Choice == 'No manure': return 0
         elif Manure_Choice == 'Manure':
@@ -1070,9 +1063,38 @@ class FDCIC(Variables):
                 self.Manure_AppTot * # ton/acre
                 self.Diesel_ManureTransportation_distance * # mile
                 self.Diesel_ManureTransportation_fuel / # Btu/ton/mile
-                self.CornYield_TS # bu/acre
+                self.Yield_TS # bu/acre
                 )
     
+    # Corn
+    @property
+    def Nfertilizer_direct_N2O_factor_US_corn(self):
+        zone = self.crop_inputs.Climate_zone
+        if zone in ('No consideration', 'NA', 'Wet or Moist'): return 0.01
+        elif zone == 'Dry': return 0.005
+        raise ValueError(f'{zone} is invalid for `crop_inputs.Climate_zone`, '
+                         'check `crop_inputs.Climate_zone.notes` for valid values.')
+    
+    @property
+    def Nfertilizer_indirect_N2O_factor_US_corn(self):
+        zone = self.crop_inputs.Climate_zone
+        if zone in ('No consideration', 'NA'): return 0.00374
+        elif zone == 'Wet or Moist': return 0.00418
+        elif zone == 'Dry': return 0.00055
+    
+    @property
+    def Nfertilizer_N2O_factor_US_corn(self):
+        return self.Nfertilizer_direct_N2O_factor_US_corn+self.Nfertilizer_indirect_N2O_factor_US_corn
+    
+    @property
+    def Nitrogen_balance_assumed(self):
+        '''Same as `N_balance_assumed`.'''
+        return self.N_balance_assumed
+    
+    @property
+    def Nfertilizer_direct_N2O_4R_US_corn(self):
+        '''N2O-N emissions under 4R practice, in g GHG per `FDCIC.GHG_functional_unit`.'''
+        return e**(0.339+0.0047*self.N_balance_assumed)
     
     # Canadian Corn, not currently in use
     @property
@@ -1123,23 +1145,211 @@ class FDCIC(Variables):
     def Annual_CH4_emission_from_rice_field(self):
         '''In kg CH4/ha.'''
         return self.EFc*self.SFw*self.SFp*self.Fo*self.Rice_cultivation_period
+    
+    # Itemized GHG
+    @property
+    def Diesel_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return (#!!! Add tillage usage?
+            self.Diesel_Farming +
+            self.Diesel_RyeCCFarming +
+            self.Diesel_ManureApplication +
+            self.Diesel_ManureTransportation
+            ) * self.CF_Diesel
+    
+    @property
+    def Gasoline_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Gasoline_Farming*self.CF_GB
+    
+    @property
+    def NG_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.NG_Farming * self.CF_NG
+    
+    @property
+    def LPG_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.LPG_Farming*self.CF_LPG
+    
+    @property
+    def Electricity_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Electricity_Farming*self.CF_Electricity
+    
+    @property
+    def Ammonia_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Ammonia_Farming/self.Ammonia_N*self.CF_Ammonia_Final/self.ton2g
+    
+    @property
+    def Urea_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Urea_Farming/self.Urea_N*self.CF_Urea/self.ton2g
+    
+    @property
+    def AN_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.AN_Farming/self.AN_N*self.CF_AN/self.ton2g
+    
+    @property
+    def AS_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.AS_Farming/self.AS_N*self.CF_AS/self.ton2g
+    
+    @property
+    def UAN_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.UAN_Farming/self.UAN_N*self.CF_UAN/self.ton2g
+    
+    @property
+    def MAP_asNfert_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.MAP_Farming_asNfert/self.MAP_N*self.CF_MAP/self.ton2g*self.MAP_share_as_Nfert
+    
+    @property
+    def DAP_asNfert_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.DAP_Farming_asNfert/self.DAP_N*self.CF_DAP/self.ton2g*self.DAP_share_as_Nfert
+    
+    @property
+    def N2O_Fert_and_Res_GHG(self):
+        '''N2O emission due to N fertilizer and biomass residue, in g GHG per `FDCIC.GHG_functional_unit`.'''
+        crop = self.crop
+        Nfert = (
+            self.Ammonia_Farming +
+            self.Urea_Farming +
+            self.AN_Farming +
+            self.AS_Farming +
+            self.UAN_Farming
+            )
+
+        if crop == 'Corn':
+            Nfert += self.MAP_CornFarming_asNfert_val + self.DAP_CornFarming_asNfert_val
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_corn
+            Nres = self.Cornfarming_Ninbiomass_residue * self.Cornfarming_biomass_N2O_factor
+        else:
+            #!!! TODO
+            raise AttributeError(f'N in residual biomass not implemented for crop {crop}.')
+            
+        # crop = 'US_sorghum' if 'sorghum' in crop else 'Brazil' if 'brazil' in crop else f'US_{crop}'
+        # Nfert_N2O_factor = getattr(self, f'Nfertilizer_N2O_factor_{crop}')
+        
+        return (
+            Nfert*Nfert_N2O_factor +
+            Nres +
+            self.RyeCCfarming_Ninbiomass_residue*self.RyeCCfarming_biomass_N2O_factor +
+            self.Manure_N_inputs_Soil*self.Manure_N2O_factor
+            ) * self.N2O_GWP * self.N2O_N_to_N2O
+    
+    @property
+    def Urea_CO2_GHG(self):
+        '''CO2 emission due to urea use, in g GHG per `FDCIC.GHG_functional_unit`.'''
+        return (
+            self.Urea_Farming +
+            self.UAN_Farming*self.UAN_Prod_UreaIn*self.Urea_N
+            ) * self.Urea_N_to_CO2
+    
+    @property
+    def MAP_asPfert_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.MAP_Farming_asPfert/self.MAP_P2O5*self.CF_MAP/self.ton2g*(1-self.MAP_share_as_Nfert)
+    
+    @property
+    def DAP_asPfert_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.DAP_Farming_asPfert/self.DAP_P2O5*self.CF_DAP/self.ton2g*(1-self.DAP_share_as_Nfert)
+    
+    @property
+    def K2O_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.K2O_Farming*self.CF_K2O/self.ton2g
+    
+    @property
+    def Lime_GHG(self):
+        '''CaCO3, in g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Lime_Farming*self.CF_Lime/self.ton2g
+    
+    @property
+    def Lime_CO2_GHG(self):
+        '''CO2 emission due to lime (CaCO3) use, in g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.Lime_Farming*self.CO2_content_in_CaCO3*self.Percent_Lime_Acidified
+    
+    @property
+    def Herbicide_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return (self.HerbicideUse_Farming+self.HerbicideUse_RyeCCFarming)*self.Herbicide_Farming_GHG
+    
+    @property
+    def Insecticide_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.InsecticideUse_Farming*self.Insecticide_Farming_GHG
+    
+    @property
+    def SOC_GHG(self):
+        '''
+        GHG due to soil organic carbon change, in g GHG per `FDCIC.GHG_functional_unit`.
+        Note that it is not included in the total carbon intensity (i.e., FDCIC.CI)
+        by default.
+        '''
+        return getattr(self, 'SOC_emission', 0)*self.CO2_C_to_CO2/self.acre2hectare*self.kg2g/self.Yield_TS
+    
+    _GHG_items = [
+        'Diesel_GHG',
+        'Gasoline_GHG',
+        'NG_GHG',
+        'LPG_GHG',
+        'Electricity_GHG',
+        'Ammonia_GHG',
+        'Urea_GHG',
+        'AN_GHG',
+        'AS_GHG',
+        'UAN_GHG',
+        'MAP_asNfert_GHG',
+        'DAP_asNfert_GHG',
+        'N2O_Fert_and_Res_GHG',
+        'Urea_CO2_GHG',
+        'MAP_asPfert_GHG',
+        'DAP_asPfert_GHG',
+        'K2O_GHG',
+        'Lime_GHG',
+        'Lime_CO2_GHG',
+        'Herbicide_GHG',
+        'Insecticide_GHG',
+        'SOC_GHG',
+        ]
+    @property
+    def GHG_items(self):
+        '''All items considered in GHG accounting.'''
+        return self._GHG_items
+    @GHG_items.setter
+    def GHG_items(self, i):
+        self._GHG_items = i
 
     @property
-    def Herbicide_RiceFarming_CO2(self):
-        '''Same as `Herbicide_CornFarming_CO2`.'''
-        return self.Herbicide_CornFarming_CO2
+    def GHG_table(self):
+        '''A table of the GHG breakdown.'''
+        dct = dict(crop=self.crop, unit=f'g CO2e/{self.GHG_functional_unit}')
+        items = self.GHG_items
+        dct.update({item: getattr(self, item) for item in items})
+        ser = pd.Series(dct)
+        ser['CI without SOC'] = ser[2:-1].sum()
+        ser['CI with SOC'] = ser[2:-1].sum()
+        return ser
+
+    @property
+    def CI(self):
+        '''
+        Feedstock carbon intensity, does not include soil organic carbon change,
+        same as `FDCIC.CI`, in g CO2e/`FDCIC.GHG_functional_unit`.
+        '''
+        return self.GHG_table.iloc[-2].value
+    CI_wo_SOC = CI
     
     @property
-    def Herbicide_RiceFarming_GHG(self):
-        '''Same as `Herbicide_CornFarming_GHG`.'''
-        return self.Herbicide_CornFarming_GHG
-    
-    @property
-    def Insecticide_RiceFarming_CO2(self):
-        '''Same as `Insecticide_CornFarming_CO2`.'''
-        return self.Insecticide_CornFarming_CO2
-    
-    @property
-    def Insecticide_RiceFarming_GHG(self):
-        '''Same as `Insecticide_CornFarming_GHG`.'''
-        return self.Insecticide_CornFarming_GHG
+    def CI_w_SOC(self):
+        '''
+        Feedstock carbon intensity with soil organic carbon change,
+        in g CO2e/`FDCIC.GHG_functional_unit`.
+        '''
+        return self.GHG_table.iloc[-2].value
