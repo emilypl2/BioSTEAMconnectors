@@ -10,13 +10,11 @@
 '''
 TODO: consider adding the SOC lookup table and choose the N2O emission factor
 depending on the region of interest.
-
-PAUSED AT ADDING RESULTS FOR CORN
 '''
 
-from . import default_inputs, Inputs, Results, Var
+from . import default_inputs, Inputs, Var
 
-__all__ = ('CornInputs', 'CornResults', 'default_corn_inputs',)
+__all__ = ('CornInputs', 'default_corn_inputs',)
 
 default_corn_inputs = [
     *default_inputs,
@@ -113,16 +111,3 @@ class CornInputs(Inputs):
     @Yield_TS.setter
     def Yield_TS(self, i):
         self.CornYield_TS = i
-
-#!!! PAUSED HERE, MIGHT NOT BE NEEDED
-class CornResults(Results):
-    '''Result calculation for corn.'''
-    
-    def __init__(self, inputs=[]):
-        self.inputs = inputs or default_corn_inputs
-        self.reset_variables()
-
-    @property
-    def GHG_functional_unit(self):
-        '''The funcitonal unit for GHG results (also unit for yield).'''
-        return 'bu'
