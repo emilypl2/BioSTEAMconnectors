@@ -6,7 +6,7 @@ Status
 ------
 .. image:: https://img.shields.io/badge/status-under%20development-orange
 
-This package aims to connect `BioSTEAM <https://biosteam.readthedocs.io>`_ with upstream ecosystem models by accounting for the costs and environmental impacts during cultivation and transportation of biorefinery feedstocks. Current efforts focus on the development of a Python class for carbon intensity calculation as in the Feedstock Carbon Intensity Calculator (`FDCIC <>`_) of `GREET <https://greet.es.anl.gov/>`_.
+This package aims to connect `BioSTEAM <https://biosteam.readthedocs.io>`_ with upstream ecosystem models by accounting for the costs and environmental impacts during cultivation and transportation of biorefinery feedstocks. Current efforts focus on the development of a Python class for carbon intensity calculation as in the Feedstock Carbon Intensity Calculator (`FDCIC <https://greet.es.anl.gov/tool_fd_cic>`_) of `GREET <https://greet.es.anl.gov/>`_.
 
 Work is still in progress and module structure is subject to (potentially significant) change, but you can get some quick results with the following codes:
 
