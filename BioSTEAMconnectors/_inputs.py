@@ -11,12 +11,16 @@ from . import (
     Variables,
     default_corn_inputs,
     default_rice_inputs,
+    default_sorghum_inputs,
+    default_sugarcane_inputs,
     )
 
 __all__ = (
     'Inputs',
     'CornInputs',
     'RiceInputs',
+    'SorghumInputs',
+    'SugarcaneInputs',
     )
 
 
@@ -103,3 +107,72 @@ class RiceInputs(Inputs):
     @Yield_TS.setter
     def Yield_TS(self, i):
         self.RiceYield_TS = i
+        
+# %%
+#!!! Likely not done
+
+class SorghumInputs(Inputs):
+    '''User inputs for sorghum.'''
+            
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_sorghum_inputs
+        self.reset_variables()
+
+    @property
+    def crop(self):
+        return 'Sorghum'
+            
+    @property
+    def GHG_functional_unit(self):
+        return 'bu'
+
+    @property
+    def Nfertilizer_source_sorghum(self):
+        '''Same as `Nfertilizer_source`.'''
+        return self.Nfertilizer_source
+    @Nfertilizer_source_sorghum.setter
+    def Nfertilizer_source_sorghum(self, i):
+        self.Nfertilizer_source = i
+                
+    @property
+    def Yield_TS(self):
+        '''Same as `SorghumYield_TS`, in `SorghumInputs.GHG_functional_unit`/acre.'''
+        return self.SorghumYield_TS
+    @Yield_TS.setter
+    def Yield_TS(self, i):
+        self.SorghumYield_TS = i
+        
+# %%
+#!!! Definitely not done
+#!!! @emily check the fertilizer sources
+
+class SugarcaneInputs(Inputs):
+    '''User inputs for sugarcane.'''
+            
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_sugarcane_inputs
+        self.reset_variables()
+
+    @property
+    def crop(self):
+        return 'Sugarcane'
+            
+    @property
+    def GHG_functional_unit(self):
+        return 'tonne'
+
+    @property
+    def Nfertilizer_source_sugarcane(self):
+        '''Same as `Nfertilizer_source`.'''
+        return self.Nfertilizer_source
+    @Nfertilizer_source_sugarcane.setter
+    def Nfertilizer_source_sugarcane(self, i):
+        self.Nfertilizer_source = i
+                
+    @property
+    def Yield_TS(self):
+        '''Same as `SugarcaneYield_TS`, in `SugarcaneInputs.GHG_functional_unit`/acre.'''
+        return self.SugarcaneYield_TS
+    @Yield_TS.setter
+    def Yield_TS(self, i):
+        self.SugarcaneYield_TS = i

@@ -14,6 +14,8 @@ from . import Variable
 __all__ = (
     'default_corn_inputs',
     'default_rice_inputs',
+    'default_sorghum_inputs',
+    'default_sugarcane_inputs',
     )
 
 default_inputs = [    
@@ -49,6 +51,7 @@ default_corn_inputs = [
     # Potash Fertilizer
     Variable('K2O_CornFarming_val', 59.9160589286196, 'lbs K2O/acre'),
     # Lime
+    #!!! Units for lime per CaCO3 instead of K2O?
     Variable('CaCO3_CornFarming_val', 573.031087811272, 'lbs K2O/acre'),
     # Herbicide
     Variable('HerbicideUse_CornFarming_val', 1044.16660544699, 'g/acre'),
@@ -108,4 +111,102 @@ default_rice_inputs = [
             'Straw incorporated shortly (<30 days) before cultivation',
             notes='Can only be "Straw incorporated shortly (<30 days) before cultivation" or '
             '"Straw incorporated long (>30 days) before cultivation"'),
+    ]
+
+# %%
+
+#!!! NOT YET READY
+#Grain sorghum - I didn't see grain sorghum was being shortened to GS in _variables until too late
+default_sorghum_inputs = [
+    *default_inputs,
+    # Yield
+    Variable('SorghumYield_TS', 81.7847222222222, 'bu/acre'),
+    # Energy
+    Variable('Diesel_SorghumFarming_val', 4.30170833333333, 'gal/acre'),
+    Variable('Gasoline_SorghumFarming_val', 0.344541666666666, 'gal/acre'),
+    Variable('NG_SorghumFarming_val', 0.726187500000001, 'ft3/acre'),
+    Variable('LPG_SorghumFarming_val', 0, 'gal/acre'),
+    Variable('Electricity_SorghumFarming_val', 0.908979166666998, 'kWh/acre'),
+    # Nitrogen Fertilizer
+    Variable('Ammonia_SorghumFarming_val', 26.0245996729668, 'lbs N/acre'),
+    Variable('Urea_SorghumFarming_val', 19.3085739509109, 'lbs N/acre'),
+    Variable('AN_SorghumFarming_val', 1.67900643051397, 'lbs N/acre'),
+    Variable('AS_SorghumFarming_val', 1.67900643051399, 'lbs N/acre'),
+    Variable('UAN_SorghumFarming_val', 26.8641028882238, 'lbs N/acre'),
+    Variable('MAP_SorghumFarming_asNfert_val', 3.35801286102798, 'lbs N/acre'),
+    Variable('DAP_SorghumFarming_asNfert_val', 5.03701929154197, 'lbs N/acre'),
+    # Phosphorus Fertilizer
+    Variable('MAP_SorghumFarming_asPfert_val', 9.23937244402193, 'lbs P2O5/acre'),
+    Variable('DAP_SorghumFarming_asPfert_val', 9.23937244402193, 'lbs P2O5/acre'),
+    # Potash Fertilizer
+    Variable('K2O_SorghumFarming_val', 4.75052928266868, 'lbs K2O/acre'),
+    # Lime
+    Variable('CaCO3_SorghumFarming_val', 0, 'lbs CaCO3/acre'),
+    # Herbicide
+    Variable('HerbicideUse_SorghumFarming_val', 1692.20772, 'g/acre'),
+    # Insecticide
+    Variable('InsecticideUse_SorghumFarming_val', 0, 'g/acre'),
+    #!!! @emily Unclear if needed? -> either need to add or change fdcic code (diesel_GHG not running)
+    # #Cover crop
+    # Variable('CC_Choice', 'No cover crop', notes='Can only be "Cover crop" or "No cover crop".'),
+    # Variable('Diesel_RyeCCFarming_val', 0, 'Btu/acre'),
+    # Variable('HerbicideUse_RyeCCFarming_val', 0, 'g/acre'),
+    # Variable('RyeCCfarming_Ninbiomass_residue_val', 0, 'dry ton/acre'),
+    # # Tillage
+    # Variable('Tillage_Choice', 'No till',
+    #          notes='Can only be one of "Conventional tillage", "Reduced tillage", or "No till".'),
+    # # Manure
+    # Variable('Manure_Choice', 'No manure', notes='Can only be "Manure" or "No manure".'),
+    # Variable('Manure_AppTot', 0, 'ton/acre'),
+    # Variable('Manure_AppRatio_Swine', 0, 'fraction'),
+    # Variable('Manure_AppRatio_Dairy', 0, 'fraction'),
+    # Variable('Manure_AppRatio_Cattle', 0, 'fraction'),
+    # Variable('Manure_AppRatio_Chicken', 0, 'fraction'),
+    # Variable('Diesel_ManureApplication_val', 0, 'Btu/acre'),
+    # Variable('Diesel_ManureTransportation_distance', 0, 'mile'),
+    # Variable('Diesel_ManureTransportation_fuel', 0, 'Btu/ton/mile'),
+    # # Related to the regionalized N2O emission factors table
+    # Variable('Climate_zone', 'No consideration',
+    #          notes='Can only be one of "No consideration", "NA", "Wet or Moist", or "Dry".'),
+    # # Related to the 4R nitrogen management practice for corn farming
+    # Variable('N_balance_assumed', 0, 'kg N/ha'),
+    # Variable('N_management_sorghum', 'Business as usual',
+    #     notes='Can only be one of "Business as usual", '
+    #         '"4R (Right time, Right place, Right form, and Right rate)", '
+    #         'or "Enhanced Efficiency Fertilizer".'),
+    # # SOC
+    # Variable('SOC_emission', 0, 'kg C/ha/yr', # Champaign, IL
+    #          notes='Positive is emission, negative is sequestration.'),
+    # # Ethanol yield, default from GREET pathway
+    # Variable('Ethanol_yield', 0, 'gal/bu',
+    #          notes='Dry mill with corn oil extraction, default value from GREET.'),    
+    ]
+
+# %%
+
+#!!! NOT YET READY
+default_sugarcane_inputs = [
+    *default_inputs,
+    # Yield
+    Variable('SugarcaneYield_TS', 35.0862993464317, 'tonne/acre'),
+    # Energy
+    Variable('Diesel_SugarcaneFarming_val', 9.93861426017841, 'gal/acre'),
+    Variable('Gasoline_SugarcaneFarming_val', 3.65425211601396, 'gal/acre'),
+    Variable('NG_SugarcaneFarming_val', 729.03119445663, 'ft3/acre'),
+    Variable('LPG_SugarcaneFarming_val', 7.4158270131275, 'gal/acre'),
+    Variable('Electricity_SugarcaneFarming_val', 87.9214124888923, 'kWh/acre'),
+    # Nitrogen Fertilizer
+    Variable('Ammonia_SugarcaneFarming_val', 11.3633099604323, 'lbs N/acre'),
+    Variable('Urea_SugarcaneFarming_val', 39.7715848615131, 'lbs N/acre'),
+    Variable('AN_SugarcaneFarming_val', 30.0316048954282, 'lbs N/acre'),
+    # Phosphorus Fertilizer
+    Variable('P_SugarcaneFarming_val', 25.7526840614667, 'lbs P2O5/acre'),
+    # Potash Fertilizer
+    Variable('K2O_SugarcaneFarming_val', 131.931762829313, 'lbs K2O/acre'),
+    # Lime
+    Variable('CaCO3_SugarcaneFarming_val', 402.230984235711, 'lbs CaCO3/acre'),
+    # Herbicide
+    Variable('HerbicideUse_SugarcaneFarming_val', 1578.88347058943, 'g/acre'),
+    # Insecticide
+    Variable('InsecticideUse_SugarcaneFarming_val', 87.7157483660792, 'g/acre'),    
     ]
