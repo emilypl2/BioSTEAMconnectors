@@ -112,7 +112,7 @@ class RiceInputs(Inputs):
 #!!! Likely not done
 
 class SorghumInputs(Inputs):
-    '''User inputs for sorghum.'''
+    '''User inputs for Sorghum.'''
             
     def __init__(self, inputs=[]):
         self.inputs = inputs or default_sorghum_inputs
@@ -127,11 +127,11 @@ class SorghumInputs(Inputs):
         return 'bu'
 
     @property
-    def Nfertilizer_source_sorghum(self):
+    def Nfertilizer_source_Sorghum(self):
         '''Same as `Nfertilizer_source`.'''
         return self.Nfertilizer_source
-    @Nfertilizer_source_sorghum.setter
-    def Nfertilizer_source_sorghum(self, i):
+    @Nfertilizer_source_Sorghum.setter
+    def Nfertilizer_source_Sorghum(self, i):
         self.Nfertilizer_source = i
                 
     @property

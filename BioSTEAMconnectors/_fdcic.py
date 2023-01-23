@@ -341,7 +341,7 @@ class FDCIC(Variables):
     
     @property
     def CF_P2O5(self):
-        '''For Brazilian sugarcane, in g GHG/ton.'''
+        '''For Brazilian Sugarcane, in g GHG/ton.'''
         vals = [
             self.PA_Brazilian_Prod_ElecIn,
             self.PA_Brazilian_Prod_PhosRockIn,
@@ -563,7 +563,7 @@ class FDCIC(Variables):
     @property
     def Urea_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'Urea_{self.crop}Farming_val')*self.g_to_lb/self.Yield_TS
+        return getattr(self, f'Urea_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def AN_Farming(self):
@@ -630,16 +630,18 @@ class FDCIC(Variables):
         '''In g CO2/ton.'''
         crop = self.crop
         # Rice has the same value as corn
-        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
-        return getattr(self, f'Herbicide_{self.crop}Farming_CO2', 0)
+        crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
+        #!!! need to fix the statement for else 'Sugarcane' if 'Sugarcane' lol and for soybean
+        return getattr(self, f'Herbicide_{crop}Farming_CO2', 0)
     
     @property
     def Herbicide_Farming_GHG(self):
         '''In g GHG/ton.'''
         crop = self.crop
         # Rice has the same value as corn
-        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
-        return getattr(self, f'Herbicide_{self.crop}Farming_GHG', 0)
+        crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
+        #!!! need to fix the statement for else 'Sugarcane' if 'Sugarcane' lol and for soybean
+        return getattr(self, f'Herbicide_{crop}Farming_GHG', 0)
     
     @property
     def Insecticide_Farming_CO2(self):
@@ -647,7 +649,7 @@ class FDCIC(Variables):
         crop = self.crop
         # Rice has the same value as corn
         crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
-        return getattr(self, f'Insecticide_{self.crop}Farming_CO2', 0)
+        return getattr(self, f'Insecticide_{crop}Farming_CO2', 0)
     
     @property
     def Insecticide_Farming_GHG(self):
@@ -657,6 +659,7 @@ class FDCIC(Variables):
         crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
         return getattr(self, f'Insecticide_{self.crop}Farming_GHG', 0)
     
+    #!!! reminder
     @property
     def Diesel_RyeCCFarming(self):
         '''In Btu per `FDCIC.GHG_functional_unit`.'''
@@ -877,6 +880,9 @@ class FDCIC(Variables):
         if crop == 'Corn':
             Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_corn
             Nres = self.Cornfarming_Ninbiomass_residue * self.Cornfarming_biomass_N2O_factor
+        elif crop == 'Sorghum':
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sorghum
+            Nres = self.GSfarming_Ninbiomass_residue * self.GSfarming_biomass_N2O_factor
         else:
             #!!! TODO
             raise AttributeError(f'N in residual biomass not implemented for crop {crop}.')
