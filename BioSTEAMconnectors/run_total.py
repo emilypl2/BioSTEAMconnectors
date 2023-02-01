@@ -6,7 +6,7 @@ Created on Wed Jan 18 18:45:18 2023
 """
 import pandas as pd, os
 join = os.path.join
-from BioSTEAMconnectors import SorghumInputs, FDCIC
+from BioSTEAMconnectors import SorghumInputs, FDCIC, inputs_path, outputs_path
 
 gtokg = 1000
 m2_per_ha = 10000
@@ -22,14 +22,13 @@ def update_results(inputs):
         outputs.loc[i,'CI_gCO2e'] = ser['CI with SOC']
     return outputs
         
-workspace_path = "C:\\Users\\Empli\\Downloads\\"
-data_path = join(workspace_path, 'SORG.csv')
+data_path = join(inputs_path, 'SORG.csv')
 #data_wb = pd.ExcelFile(data_path)
 #inputs = pd.read_csv(data_wb, sheet_name='FDCIC', header=[0], index_col=0).reset_index(drop=True)
 inputs = pd.read_csv(data_path, header=[0], index_col=0).reset_index(drop=True)
 outputs = update_results(inputs)
-output_path = join(workspace_path, 'Complete_CI.csv')
-outputs.to_csv(output_path)
+output_path = join(outputs_path, 'Complete_CI.csv')
+outputs.to_csv(output_path) 
 #data_wb.close()
 
 

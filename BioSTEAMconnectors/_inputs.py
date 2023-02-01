@@ -20,7 +20,8 @@ __all__ = (
     'CornInputs',
     'RiceInputs',
     'SorghumInputs',
-    'SugarcaneInputs',
+    'BrazilianSugarcaneInputs',
+    'SugarcaneInputs'
     )
 
 
@@ -109,7 +110,6 @@ class RiceInputs(Inputs):
         self.RiceYield_TS = i
         
 # %%
-#!!! Likely not done
 
 class SorghumInputs(Inputs):
     '''User inputs for Sorghum.'''
@@ -144,7 +144,40 @@ class SorghumInputs(Inputs):
         
 # %%
 #!!! Definitely not done
-#!!! @emily check the fertilizer sources
+
+class BrazilianSugarcaneInputs(Inputs):
+    '''User inputs for sugarcane.'''
+            
+    def __init__(self, inputs=[]):
+        self.inputs = inputs or default_sugarcane_inputs
+        self.reset_variables()
+
+    @property
+    def crop(self):
+        return 'BrazilianSugarcane'
+            
+    @property
+    def GHG_functional_unit(self):
+        return 'tonne'
+
+    @property
+    def Nfertilizer_source_sugarcane(self):
+        '''Same as `Nfertilizer_source`.'''
+        return self.Nfertilizer_source
+    @Nfertilizer_source_sugarcane.setter
+    def Nfertilizer_source_sugarcane(self, i):
+        self.Nfertilizer_source = i
+                
+    @property
+    def Yield_TS(self):
+        '''Same as `SugarcaneYield_TS`, in `SugarcaneInputs.GHG_functional_unit`/acre.'''
+        return self.SugarcaneYield_TS
+    @Yield_TS.setter
+    def Yield_TS(self, i):
+        self.SugarcaneYield_TS = i
+        
+# %%
+#!!! Definitely not done
 
 class SugarcaneInputs(Inputs):
     '''User inputs for sugarcane.'''

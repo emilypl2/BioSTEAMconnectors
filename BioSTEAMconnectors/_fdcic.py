@@ -135,7 +135,7 @@ class FDCIC(Variables):
     
     # Characterization factors
     def _get_NG_Elec_source(self):
-        return ('Ammonia', '') if self.crop!='BrazilianSugarcane' else ('StationaryFuel', 'Brazilian_')
+        return ('Ammonia', '') if 'Brazilian' not in self.crop else ('StationaryFuel', 'Brazilian_')
     
     @property
     def _CF_Ammonia_shared(self):
@@ -217,9 +217,14 @@ class FDCIC(Variables):
             self.NA_ElecIn,
             self.NA_AmmoniaIn,
             ]
-        CO2 = vals[0]*self.Electricity_upstream_CO2
-        CH4 = vals[0]*self.Electricity_upstream_CH4
-        N2O = vals[0]*self.Electricity_upstream_N2O
+        if 'Brazilian' not in self.crop:
+            CO2 = vals[0]*self.Electricity_upstream_CO2
+            CH4 = vals[0]*self.Electricity_upstream_CH4
+            N2O = vals[0]*self.Electricity_upstream_N2O
+        else: 
+            CO2 = vals[0]*self.Electricity_Brazilian_upstream_CO2
+            CH4 = vals[0]*self.Electricity_Brazilian_upstream_CH4
+            N2O = vals[0]*self.Electricity_Brazilian_upstream_N2O
         return (
             CO2*self.CO2_GWP + CH4*self.CH4_GWP + N2O*self.N2O_GWP +
             vals[1]*self.CF_Ammonia_Intermediate +
@@ -253,8 +258,11 @@ class FDCIC(Variables):
             vals[2]*self.CF_Ammonia_Intermediate +
             self.AN_InputsCons_GHG + self.AN_TD_GHG_Final
             )
-        if 'Brazilian' not in self.crop: return GHG + vals[3]*self.CF_NA
-        return GHG + self.NA_Prod_AmmoniaIn*self.CF_Ammonia_Intermediate
+       # if 'Brazilian' not in self.crop: return GHG + vals[3]*self.CF_NA
+        return GHG + vals[3]*self.CF_NA
+    #GHG + vals[3]*self.NA_Prod_AmmoniaIn*self.CF_Ammonia_Intermediate + vals[3]*self.CF_NA
+    #!!! WAS causing issue with AN sugarcane value, equation (val[2] + val[3]*0.288)*self.NA_Prod_AmmoniaIn
+    #where 0.288 tons of ammonia needed to produce a ton of nitric acid? 
     
     @property
     def CF_AS(self):
@@ -370,6 +378,7 @@ class FDCIC(Variables):
     @property
     def CF_K2O(self):
         '''In g GHG/ton.'''
+        NG, Elec = self._get_NG_Elec_source()
         vals = [
             self.K2O_Prod_NGIn,
             self.K2O_Prod_ElecIn,
@@ -377,17 +386,17 @@ class FDCIC(Variables):
             ]
         CO2 = (
             vals[0]*self.NG_upstream_CO2_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CO2 +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CO2') +
             vals[2]*self.Diesel_upstream_CO2
             )
         CH4 = (
             vals[0]*self.NG_upstream_CH4_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_CH4 +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_CH4') +
             vals[2]*self.Diesel_upstream_CH4
             )
         N2O = (
             vals[0]*self.NG_upstream_N2O_for_StationaryFuel +
-            vals[1]*self.Electricity_upstream_N2O +
+            vals[1]*getattr(self, f'Electricity_{Elec}upstream_N2O') +
             vals[2]*self.Diesel_upstream_N2O
             )
         return (
@@ -464,7 +473,7 @@ class FDCIC(Variables):
             self.Diesel_upstream_CH4*self.CH4_GWP +
             self.Diesel_upstream_N2O*self.N2O_GWP
             ) / 1e6 # from mmBtu to Btu
-        if not 'Sugarcane' in self.crop: return GHG+self.CornFarming_DieselCons_GHG
+        if 'Sugarcane' not in self.crop: return GHG+self.CornFarming_DieselCons_GHG
         return GHG+self.SugarcaneFarming_DieselCons_GHG
     
     @property
@@ -528,89 +537,128 @@ class FDCIC(Variables):
         crop = 'GS' if crop == 'Sorghum' else crop
         try: return getattr(self, f'Insecticide_{crop}Farming_GHG')
         except AttributeError: return 0
-    
+   
     # Energy and chemcial usage
     @property
     def Diesel_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Diesel_{self.crop}Farming_val', 0)*self.Diesel_LHV/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'Diesel_{crop}Farming_val', 0)*self.Diesel_LHV/self.Yield_TS
     
     @property
     def Gasoline_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Gasoline_{self.crop}Farming_val', 0)*self.Gasoline_LHV/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'Gasoline_{crop}Farming_val', 0)*self.Gasoline_LHV/self.Yield_TS
     
     @property
     def NG_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'NG_{self.crop}Farming_val', 0)*self.NG_LHV/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'NG_{crop}Farming_val', 0)*self.NG_LHV/self.Yield_TS
 
     @property
     def LPG_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'LPG_{self.crop}Farming_val', 0)*self.LPG_LHV/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'LPG_{crop}Farming_val', 0)*self.LPG_LHV/self.Yield_TS
     
     @property
     def Electricity_Farming(self):
         '''In Btu/bu.'''
-        return getattr(self, f'Electricity_{self.crop}Farming_val', 0)*self.Electricity_LHV/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'Electricity_{crop}Farming_val', 0)*self.Electricity_LHV/self.Yield_TS
     
     @property
     def Ammonia_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'Ammonia_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'Ammonia_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def Urea_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'Urea_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'Urea_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def AN_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'AN_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'AN_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def AS_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'AS_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'AS_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def UAN_Farming(self):
         '''In g N/bu.'''
-        return getattr(self, f'UAN_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'UAN_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def MAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return getattr(self, f'MAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'MAP_{crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def DAP_Farming_asNfert(self):
         '''In g N/bu.'''
-        return getattr(self, f'DAP_{self.crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'DAP_{crop}Farming_asNfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def MAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        return getattr(self, f'MAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'MAP_{crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def DAP_Farming_asPfert(self):
         '''In g P2O5/bu.'''
-        return getattr(self, f'DAP_{self.crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'DAP_{crop}Farming_asPfert_val', 0)*self.g_to_lb/self.Yield_TS
 
     @property
     def K2O_Farming(self):
         '''In g K2O/bu.'''
-        return getattr(self, f'K2O_{self.crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'K2O_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
+   
+    @property
+    def P2O5_Farming(self):
+        '''In g K2O/bu.'''
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'P2O5_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
     
     @property
     def CaCO3_Farming(self):
         '''In g/bu.'''
-        try: lime = getattr(self, f'CaCO3_{self.crop}Farming_val')
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        try: lime = getattr(self, f'CaCO3_{crop}Farming_val')
         except:
-            try: lime = getattr(self, f'Lime_{self.crop}Farming_val')
+            try: lime = getattr(self, f'Lime_{crop}Farming_val')
             except: lime = 0
         return lime*self.g_to_lb/self.Yield_TS
     Lime_Farming = CaCO3_Farming
@@ -618,12 +666,16 @@ class FDCIC(Variables):
     @property
     def HerbicideUse_Farming(self):
         '''In g/bu.'''
-        return getattr(self, f'HerbicideUse_{self.crop}Farming_val', 0)/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'HerbicideUse_{crop}Farming_val', 0)/self.Yield_TS
     
     @property
     def InsecticideUse_Farming(self):
         '''In g/bu.'''
-        return getattr(self, f'InsecticideUse_{self.crop}Farming_val', 0)/self.Yield_TS
+        crop = self.crop
+        crop = 'Sugarcane' if 'Brazilian' in crop else crop
+        return getattr(self, f'InsecticideUse_{crop}Farming_val', 0)/self.Yield_TS
 
     @property
     def Herbicide_Farming_CO2(self):
@@ -631,7 +683,6 @@ class FDCIC(Variables):
         crop = self.crop
         # Rice has the same value as corn
         crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
-        #!!! need to fix the statement for else 'Sugarcane' if 'Sugarcane' lol and for soybean
         return getattr(self, f'Herbicide_{crop}Farming_CO2', 0)
     
     @property
@@ -640,7 +691,6 @@ class FDCIC(Variables):
         crop = self.crop
         # Rice has the same value as corn
         crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
-        #!!! need to fix the statement for else 'Sugarcane' if 'Sugarcane' lol and for soybean
         return getattr(self, f'Herbicide_{crop}Farming_GHG', 0)
     
     @property
@@ -648,7 +698,7 @@ class FDCIC(Variables):
         '''In g CO2/ton.'''
         crop = self.crop
         # Rice has the same value as corn
-        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
+        crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
         return getattr(self, f'Insecticide_{crop}Farming_CO2', 0)
     
     @property
@@ -656,10 +706,9 @@ class FDCIC(Variables):
         '''In g GHG/ton.'''
         crop = self.crop
         # Rice has the same value as corn
-        crop = 'Corn' if crop in ('Corn', 'Rice') else 'GS' if 'Sorghum' in crop else crop
-        return getattr(self, f'Insecticide_{self.crop}Farming_GHG', 0)
+        crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
+        return getattr(self, f'Insecticide_{crop}Farming_GHG', 0)
     
-    #!!! reminder
     @property
     def Diesel_RyeCCFarming(self):
         '''In Btu per `FDCIC.GHG_functional_unit`.'''
@@ -843,6 +892,7 @@ class FDCIC(Variables):
     def AN_GHG(self):
         '''In g GHG per `FDCIC.GHG_functional_unit`.'''
         return self.AN_Farming/self.AN_N*self.CF_AN/self.ton2g
+    #!!! Check wrong sugarcane
     
     @property
     def AS_GHG(self):
@@ -883,12 +933,24 @@ class FDCIC(Variables):
         elif crop == 'Sorghum':
             Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sorghum
             Nres = self.GSfarming_Ninbiomass_residue * self.GSfarming_biomass_N2O_factor
+        elif crop == 'Sugarcane':
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sorghum
+            Nres = self.Sugarcanefarming_Ninbiomass_residue * self.Sugarcanefarming_biomass_N2O_factor
+            #!!! assuming crop resid same as sorghum for US sugarcane for now..... 0.01374
+            #running corn for default also 0.1374
+        elif 'Brazilian' in self.crop:
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_Brazil
+            Nres = self.Sugarcanefarming_Ninbiomass_residue * self.Sugarcanefarming_biomass_N2O_factor
         else:
             #!!! TODO
             raise AttributeError(f'N in residual biomass not implemented for crop {crop}.')
             
-        # crop = 'US_sorghum' if 'sorghum' in crop else 'Brazil' if 'brazil' in crop else f'US_{crop}'
+        # crop = 'US_sorghum' if 'sorghum' in crop else 'Brazil' if 'Brazil' in crop else f'US_{crop}'
         # Nfert_N2O_factor = getattr(self, f'Nfertilizer_N2O_factor_{crop}')
+        #crop = 'Corn' if crop in ('Corn', 'Rice', 'Sorghum') else 'Sugarcane' if 'Sugarcane' in crop else crop
+        #crop = self.crop
+        #crop = 'GS' if crop == 'Sorghum' else crop
+        #crop = 'Sugarcane' if 'Brazilian' in crop else crop else 
         
         return (
             Nfert*Nfert_N2O_factor +
@@ -896,7 +958,8 @@ class FDCIC(Variables):
             self.RyeCCfarming_Ninbiomass_residue*self.RyeCCfarming_biomass_N2O_factor +
             self.Manure_N_inputs_Soil*self.Manure_N2O_factor
             ) * self.N2O_GWP * self.N2O_N_to_N2O
-    
+    #!!! Add N2O due to soil amendment transportation to field
+   
     @property
     def Urea_CO2_GHG(self):
         '''CO2 emission due to urea use, in g GHG per `FDCIC.GHG_functional_unit`.'''
@@ -904,7 +967,7 @@ class FDCIC(Variables):
             self.Urea_Farming +
             self.UAN_Farming*self.UAN_Prod_UreaIn*self.Urea_N
             ) * self.Urea_N_to_CO2
-    
+    #!!! Add GHG due to soil amendment... ^
     @property
     def MAP_asPfert_GHG(self):
         '''In g GHG per `FDCIC.GHG_functional_unit`.'''
@@ -914,6 +977,10 @@ class FDCIC(Variables):
     def DAP_asPfert_GHG(self):
         '''In g GHG per `FDCIC.GHG_functional_unit`.'''
         return self.DAP_Farming_asPfert/self.DAP_P2O5*self.CF_DAP/self.ton2g*(1-self.DAP_share_as_Nfert)
+    @property
+    def P2O5_GHG(self):
+        '''In g GHG per `FDCIC.GHG_functional_unit`.'''
+        return self.P2O5_Farming*self.CF_P2O5/self.ton2g
     
     @property
     def K2O_GHG(self):
@@ -966,6 +1033,7 @@ class FDCIC(Variables):
         'Urea_CO2_GHG',
         'MAP_asPfert_GHG',
         'DAP_asPfert_GHG',
+        'P2O5_GHG',
         'K2O_GHG',
         'Lime_GHG',
         'Lime_CO2_GHG',
