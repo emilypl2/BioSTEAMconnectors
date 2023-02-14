@@ -8,6 +8,9 @@ import pandas as pd, os
 join = os.path.join
 from BioSTEAMconnectors import SorghumInputs, FDCIC, inputs_path, outputs_path
 
+#!!! read crop kill soybean
+#!!! add netGHG and CI into new column 
+#!!! write in units (per ton per bu per etc)
 gtokg = 1000
 m2_per_ha = 10000
 

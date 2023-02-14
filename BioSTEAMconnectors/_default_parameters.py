@@ -75,6 +75,7 @@ default_parameters = [
     Variable('Sugarcane_NinVinasse', 205.2, 'g/tonne'),
     Variable('Sugarcane_NinFilteredcake', 35.8783008036739, 'g/tonne'),
     Variable('Sugarcanefarming_biomass_N2O_factor', 0.01264, 'fraction'),
+    Variable('Nfertilizer_N2O_factor_US_sugarcane', 0.01374, 'fraction'),
     Variable('Nfertilizer_N2O_factor_Brazil', 0.0122, 'fraction'),
     # Rice: N content of above and below ground biomass and N2O Emission
     Variable('Ricefarming_Ninbiomass_residue', 535.140584128, 'g/cwt'),

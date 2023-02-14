@@ -261,8 +261,6 @@ class FDCIC(Variables):
        # if 'Brazilian' not in self.crop: return GHG + vals[3]*self.CF_NA
         return GHG + vals[3]*self.CF_NA
     #GHG + vals[3]*self.NA_Prod_AmmoniaIn*self.CF_Ammonia_Intermediate + vals[3]*self.CF_NA
-    #!!! WAS causing issue with AN sugarcane value, equation (val[2] + val[3]*0.288)*self.NA_Prod_AmmoniaIn
-    #where 0.288 tons of ammonia needed to produce a ton of nitric acid? 
     
     @property
     def CF_AS(self):
@@ -650,7 +648,7 @@ class FDCIC(Variables):
         crop = self.crop
         crop = 'Sugarcane' if 'Brazilian' in crop else crop
         return getattr(self, f'P2O5_{crop}Farming_val', 0)*self.g_to_lb/self.Yield_TS
-    
+
     @property
     def CaCO3_Farming(self):
         '''In g/bu.'''
@@ -892,7 +890,6 @@ class FDCIC(Variables):
     def AN_GHG(self):
         '''In g GHG per `FDCIC.GHG_functional_unit`.'''
         return self.AN_Farming/self.AN_N*self.CF_AN/self.ton2g
-    #!!! Check wrong sugarcane
     
     @property
     def AS_GHG(self):
@@ -934,10 +931,8 @@ class FDCIC(Variables):
             Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sorghum
             Nres = self.GSfarming_Ninbiomass_residue * self.GSfarming_biomass_N2O_factor
         elif crop == 'Sugarcane':
-            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sorghum
+            Nfert_N2O_factor = self.Nfertilizer_N2O_factor_US_sugarcane
             Nres = self.Sugarcanefarming_Ninbiomass_residue * self.Sugarcanefarming_biomass_N2O_factor
-            #!!! assuming crop resid same as sorghum for US sugarcane for now..... 0.01374
-            #running corn for default also 0.1374
         elif 'Brazilian' in self.crop:
             Nfert_N2O_factor = self.Nfertilizer_N2O_factor_Brazil
             Nres = self.Sugarcanefarming_Ninbiomass_residue * self.Sugarcanefarming_biomass_N2O_factor
@@ -958,8 +953,15 @@ class FDCIC(Variables):
             self.RyeCCfarming_Ninbiomass_residue*self.RyeCCfarming_biomass_N2O_factor +
             self.Manure_N_inputs_Soil*self.Manure_N2O_factor
             ) * self.N2O_GWP * self.N2O_N_to_N2O
-    #!!! Add N2O due to soil amendment transportation to field
-   
+
+    @property
+    def N2O_soil_amend_app_GHG(self):
+        '''N2O emissions due to soil amendment application in g GHG per `FDCIC.GHG_functional_unit`.'''            
+        if self.Apply_Sugarcane_soil_amendment == 'No': return 0
+        elif self.Apply_Sugarcane_soil_amendment == 'Yes': 
+            return (self.Sugarcane_NinVinasse + self.Sugarcane_NinFilteredcake
+                    )*self.Sugarcanefarming_biomass_N2O_factor* self.N2O_GWP * self.N2O_N_to_N2O
+        
     @property
     def Urea_CO2_GHG(self):
         '''CO2 emission due to urea use, in g GHG per `FDCIC.GHG_functional_unit`.'''
@@ -967,7 +969,12 @@ class FDCIC(Variables):
             self.Urea_Farming +
             self.UAN_Farming*self.UAN_Prod_UreaIn*self.Urea_N
             ) * self.Urea_N_to_CO2
-    #!!! Add GHG due to soil amendment... ^
+    @property
+    def N2O_soil_amend_transport_GHG(self):
+        '''N2O emissions due to soil amendment transport to field in g GHG per `FDCIC.GHG_functional_unit`.'''
+        if self.Apply_Sugarcane_soil_amendment == 'No': return 0
+        elif self.Apply_Sugarcane_soil_amendment == 'Yes': return (self.SugarcaneFarming_SoilAmendment_TD_GHG)
+        
     @property
     def MAP_asPfert_GHG(self):
         '''In g GHG per `FDCIC.GHG_functional_unit`.'''
@@ -1030,7 +1037,9 @@ class FDCIC(Variables):
         'MAP_asNfert_GHG',
         'DAP_asNfert_GHG',
         'N2O_Fert_and_Res_GHG',
+        'N2O_soil_amend_app_GHG',
         'Urea_CO2_GHG',
+        'N2O_soil_amend_transport_GHG',
         'MAP_asPfert_GHG',
         'DAP_asPfert_GHG',
         'P2O5_GHG',

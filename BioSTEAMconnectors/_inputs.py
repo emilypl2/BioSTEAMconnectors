@@ -143,7 +143,6 @@ class SorghumInputs(Inputs):
         self.SorghumYield_TS = i
         
 # %%
-#!!! Definitely not done
 
 class BrazilianSugarcaneInputs(Inputs):
     '''User inputs for sugarcane.'''
@@ -177,7 +176,6 @@ class BrazilianSugarcaneInputs(Inputs):
         self.SugarcaneYield_TS = i
         
 # %%
-#!!! Definitely not done
 
 class SugarcaneInputs(Inputs):
     '''User inputs for sugarcane.'''

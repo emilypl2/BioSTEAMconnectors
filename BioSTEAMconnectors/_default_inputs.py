@@ -116,7 +116,6 @@ default_rice_inputs = [
 
 # %%
 
-#Grain Sorghum - I didn't see grain Sorghum was being shortened to Sorghum in _variables until too late
 default_sorghum_inputs = [
     *default_inputs,
     # Yield
@@ -150,7 +149,6 @@ default_sorghum_inputs = [
 
 # %%
 
-#!!! NOT YET READY
 default_sugarcane_inputs = [
     *default_inputs,
     # Yield
@@ -169,8 +167,10 @@ default_sugarcane_inputs = [
     Variable('UAN_SugarcaneFarming_val', 0, 'lbs N/acre'),
     Variable('MAP_SugarcaneFarming_asNfert_val', 0, 'lbs N/acre'),
     Variable('DAP_SugarcaneFarming_asNfert_val', 0, 'lbs N/acre'),
+    #Soil Amendment
+    Variable('Apply_Sugarcane_soil_amendment', 'Yes'),
     # Phosphorus Fertilizer
-    Variable('P_SugarcaneFarming_val', 25.7526840614667, 'lbs P2O5/acre'),
+    Variable('P2O5_SugarcaneFarming_val', 25.7526840614667, 'lbs P2O5/acre'),
     # Potash Fertilizer
     Variable('K2O_SugarcaneFarming_val', 131.931762829313, 'lbs K2O/acre'),
     # Lime
