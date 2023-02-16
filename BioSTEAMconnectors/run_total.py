@@ -6,11 +6,10 @@ Created on Wed Jan 18 18:45:18 2023
 """
 import pandas as pd, os
 join = os.path.join
-from BioSTEAMconnectors import SorghumInputs, FDCIC, inputs_path, outputs_path
+from BioSTEAMconnectors import SorghumInputs, SugarcaneInputs, FDCIC, inputs_path, outputs_path
 
-#!!! read crop kill soybean
-#!!! add netGHG and CI into new column 
-#!!! write in units (per ton per bu per etc)
+#!!! Two columns: with and without SOC
+
 gtokg = 1000
 m2_per_ha = 10000
 
@@ -19,10 +18,19 @@ def update_results(inputs):
     #outputs['CI_gCO2e'] = pd.Series(dtype='int')
     inputs = inputs.T
     for i in inputs:
-        fdcic = FDCIC(crop_inputs = SorghumInputs())
-        fdcic.SOC_emission = (outputs.loc[i,'Delta_soilC_gCm2'])/gtokg*m2_per_ha
-        ser = fdcic.GHG_table
-        outputs.loc[i,'CI_gCO2e'] = ser['CI with SOC']
+        if outputs.loc[i,'Crop'] == 'Sorghum':
+            fdcic = FDCIC(crop_inputs = SorghumInputs())
+            fdcic.SOC_emission = (outputs.loc[i,'Delta_soilC_gCm2'])/gtokg*m2_per_ha
+            ser = fdcic.GHG_table
+            outputs.loc[i,f'{ser.unit}'] = ser['CI with SOC']
+        elif outputs.loc[i,'Crop'] == 'Sugarcane':
+            fdcic = FDCIC(crop_inputs = SugarcaneInputs())
+            #!!! convert units when we get DayCent outputs and set SOC emissions
+            #fdcic.SOC_emission = (outputs.loc[i,'Delta_soilC_gCm2'])/gtokg*m2_per_ha
+            ser = fdcic.GHG_table
+            outputs.loc[i,f'{ser.unit}'] = ser['CI with SOC']            
+        else:
+            outputs.iloc[i, -1] = 0
     return outputs
         
 data_path = join(inputs_path, 'SORG.csv')

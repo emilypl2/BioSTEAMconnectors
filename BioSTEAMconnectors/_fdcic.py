@@ -957,7 +957,8 @@ class FDCIC(Variables):
     @property
     def N2O_soil_amend_app_GHG(self):
         '''N2O emissions due to soil amendment application in g GHG per `FDCIC.GHG_functional_unit`.'''            
-        if self.Apply_Sugarcane_soil_amendment == 'No': return 0
+        if 'Sugarcane' not in self.crop: return 0
+        elif   self.Apply_Sugarcane_soil_amendment == 'No': return 0
         elif self.Apply_Sugarcane_soil_amendment == 'Yes': 
             return (self.Sugarcane_NinVinasse + self.Sugarcane_NinFilteredcake
                     )*self.Sugarcanefarming_biomass_N2O_factor* self.N2O_GWP * self.N2O_N_to_N2O
@@ -972,7 +973,8 @@ class FDCIC(Variables):
     @property
     def N2O_soil_amend_transport_GHG(self):
         '''N2O emissions due to soil amendment transport to field in g GHG per `FDCIC.GHG_functional_unit`.'''
-        if self.Apply_Sugarcane_soil_amendment == 'No': return 0
+        if 'Sugarcane' not in self.crop: return 0
+        elif self.Apply_Sugarcane_soil_amendment == 'No': return 0
         elif self.Apply_Sugarcane_soil_amendment == 'Yes': return (self.SugarcaneFarming_SoilAmendment_TD_GHG)
         
     @property
