@@ -8,29 +8,32 @@ import pandas as pd, os
 join = os.path.join
 from BioSTEAMconnectors import SorghumInputs, SugarcaneInputs, FDCIC, inputs_path, outputs_path
 
-#!!! Two columns: with and without SOC
-
 gtokg = 1000
 m2_per_ha = 10000
 
 def update_results(inputs):
-    outputs = inputs.copy()
-    #outputs['CI_gCO2e'] = pd.Series(dtype='int')
+    outputs = pd.DataFrame(inputs.copy())
+    outputs['temp_CO2eq'] = pd.Series(dtype='int')
+    outputs['temp_CO2eq_without_SOC'] = pd.Series(dtype='int')
     inputs = inputs.T
     for i in inputs:
         if outputs.loc[i,'Crop'] == 'Sorghum':
             fdcic = FDCIC(crop_inputs = SorghumInputs())
             fdcic.SOC_emission = (outputs.loc[i,'Delta_soilC_gCm2'])/gtokg*m2_per_ha
             ser = fdcic.GHG_table
-            outputs.loc[i,f'{ser.unit}'] = ser['CI with SOC']
+            outputs.loc[i,'temp_CO2eq'] = ser['CI with SOC']
+            outputs.loc[i,'temp_CO2eq_without_SOC'] = ser['CI without SOC']
         elif outputs.loc[i,'Crop'] == 'Sugarcane':
             fdcic = FDCIC(crop_inputs = SugarcaneInputs())
             #!!! convert units when we get DayCent outputs and set SOC emissions
             #fdcic.SOC_emission = (outputs.loc[i,'Delta_soilC_gCm2'])/gtokg*m2_per_ha
             ser = fdcic.GHG_table
-            outputs.loc[i,f'{ser.unit}'] = ser['CI with SOC']            
+            outputs.loc[i,'temp_CO2eq'] = ser['CI with SOC'] 
+            outputs.loc[i,'temp_CO2eq_without_SOC'] = ser['CI without SOC']
         else:
             outputs.iloc[i, -1] = 0
+            outputs.iloc[i, -2] = 0
+    outputs = outputs.rename(columns={'temp_CO2eq': f'{ser.unit}', 'temp_CO2eq_without_SOC': f'{ser.unit} without SOC'})
     return outputs
         
 data_path = join(inputs_path, 'SORG.csv')
